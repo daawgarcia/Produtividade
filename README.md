@@ -8,7 +8,7 @@ Dashboard web com 2 visoes:
 Recursos implementados:
 
 - Filtro por data (calendario) para visualizar somente um dia.
-- Atualizacao automatica a cada 2 minutos.
+- Atualizacao automatica a cada 10 minutos.
 - Botao de sincronizacao manual (forca novo fetch nas planilhas).
 - Rotas API server-side para leitura segura de Google Sheets.
 

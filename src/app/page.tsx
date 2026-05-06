@@ -6,7 +6,7 @@ import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 
 type TabKey = "operators" | "movers";
 
-const AUTO_REFRESH_MS = 2 * 60 * 1000;
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("pt-BR").format(value);

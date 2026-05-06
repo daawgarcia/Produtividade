@@ -3,7 +3,7 @@ import { getSheetRows, getSheetRowsByName } from "@/lib/reports/googleSheets";
 import { buildMoversReport, buildOperatorsReport } from "@/lib/reports/parsers";
 import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 
-const TWO_MINUTES_MS = 2 * 60 * 1000;
+const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 const cache = new Map<string, { createdAt: number; data: unknown }>();
 
@@ -44,7 +44,7 @@ async function withCache<T>(
 
   if (!forceRefresh) {
     const cached = cache.get(key);
-    if (cached && now - cached.createdAt < TWO_MINUTES_MS) {
+    if (cached && now - cached.createdAt < TEN_MINUTES_MS) {
       return cached.data as T;
     }
   }
