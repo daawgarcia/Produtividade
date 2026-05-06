@@ -42,6 +42,14 @@ function toIsoDate(value: string): string | null {
     return `${year}-${month}-${day}`;
   }
 
+  const dateWithDash = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+  if (dateWithDash) {
+    const day = dateWithDash[1].padStart(2, "0");
+    const month = dateWithDash[2].padStart(2, "0");
+    const year = dateWithDash[3].length === 2 ? `20${dateWithDash[3]}` : dateWithDash[3];
+    return `${year}-${month}-${day}`;
+  }
+
   const maybeNumber = Number(trimmed);
   if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
     const unixMs = Math.round((maybeNumber - 25569) * 86400 * 1000);
@@ -64,6 +72,58 @@ function findDateColumn(headers: string[]): number {
   return index >= 0 ? index : 0;
 }
 
+function findHeaderAndDataRows(
+  rows: string[][],
+  keywords: string[]
+): { headers: string[]; dataRows: string[][] } {
+  const scanLimit = Math.min(rows.length, 12);
+  let bestIndex = 0;
+  let bestScore = -1;
+
+  for (let rowIndex = 0; rowIndex < scanLimit; rowIndex++) {
+    const row = rows[rowIndex] ?? [];
+    const normalized = row.map((cell) => normalizeText(String(cell ?? "")));
+    const nonEmptyCells = normalized.filter(Boolean).length;
+    const keywordMatches = normalized.reduce((acc, cell) => {
+      if (!cell) {
+        return acc;
+      }
+      return acc + (keywords.some((keyword) => cell.includes(keyword)) ? 1 : 0);
+    }, 0);
+
+    const score = keywordMatches * 10 + nonEmptyCells;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = rowIndex;
+    }
+  }
+
+  const headers = (rows[bestIndex] ?? []).map(String);
+  const dataRows = rows.slice(bestIndex + 1);
+
+  return { headers, dataRows };
+}
+
+function shouldIncludeRow(
+  rowDate: string | null,
+  dateFilter: string | null,
+  yearFilter: number | null
+): boolean {
+  if (!rowDate) {
+    return !dateFilter && !yearFilter;
+  }
+
+  if (dateFilter && rowDate !== dateFilter) {
+    return false;
+  }
+
+  if (yearFilter && !rowDate.startsWith(`${yearFilter}-`)) {
+    return false;
+  }
+
+  return true;
+}
+
 function matchColumns(headers: string[], patterns: string[]): number[] {
   return headers
     .map((header, index) => ({ header: normalizeText(header), index }))
@@ -73,32 +133,33 @@ function matchColumns(headers: string[], patterns: string[]): number[] {
 
 export function buildOperatorsReport(
   input: Array<{ operator: string; rows: string[][] }>,
-  dateFilter: string | null
+  dateFilter: string | null,
+  yearFilter: number | null
 ): OperatorsReport {
   const operators: OperatorReportItem[] = [];
 
   for (const { operator, rows } of input) {
-    const [headerRow = [], ...dataRows] = rows;
-    const headers = headerRow.map(String);
+    const { headers, dataRows } = findHeaderAndDataRows(rows, [
+      "data",
+      "scanner",
+      "prepar",
+      "libera",
+    ]);
 
     const dateColumn = findDateColumn(headers);
-    const preparoColumns = matchColumns(headers, ["preparo"]);
-    const liberacaoColumns = matchColumns(headers, ["liberacao"]);
+    const preparoColumns = matchColumns(headers, ["prepar"]);
+    const liberacaoColumns = matchColumns(headers, ["libera"]);
     const scannerColumns = matchColumns(headers, ["scanner"]);
-    const mioColumns = matchColumns(headers, ["mio"]);
-    const airColumns = matchColumns(headers, ["air"]);
 
     const metrics = {
       preparo: 0,
       liberacao: 0,
       scanner: 0,
-      mio: 0,
-      air: 0,
     };
 
     for (const row of dataRows) {
       const rowDate = toIsoDate(row[dateColumn] ?? "");
-      if (dateFilter && rowDate !== dateFilter) {
+      if (!shouldIncludeRow(rowDate, dateFilter, yearFilter)) {
         continue;
       }
 
@@ -111,16 +172,9 @@ export function buildOperatorsReport(
       for (const column of scannerColumns) {
         metrics.scanner += parseNumber(row[column] ?? "0");
       }
-      for (const column of mioColumns) {
-        metrics.mio += parseNumber(row[column] ?? "0");
-      }
-      for (const column of airColumns) {
-        metrics.air += parseNumber(row[column] ?? "0");
-      }
     }
 
-    const total =
-      metrics.preparo + metrics.liberacao + metrics.scanner + metrics.mio + metrics.air;
+    const total = metrics.preparo + metrics.liberacao + metrics.scanner;
 
     operators.push({
       operator,
@@ -134,8 +188,6 @@ export function buildOperatorsReport(
       acc.preparo += item.preparo;
       acc.liberacao += item.liberacao;
       acc.scanner += item.scanner;
-      acc.mio += item.mio;
-      acc.air += item.air;
       acc.total += item.total;
       return acc;
     },
@@ -143,8 +195,6 @@ export function buildOperatorsReport(
       preparo: 0,
       liberacao: 0,
       scanner: 0,
-      mio: 0,
-      air: 0,
       total: 0,
     }
   );
@@ -152,6 +202,7 @@ export function buildOperatorsReport(
   return {
     generatedAt: new Date().toISOString(),
     dateFilter,
+    yearFilter,
     totals,
     operators,
   };
@@ -159,13 +210,19 @@ export function buildOperatorsReport(
 
 export function buildMoversReport(
   input: Array<{ movimentador: string; rows: string[][] }>,
-  dateFilter: string | null
+  dateFilter: string | null,
+  yearFilter: number | null
 ): MoversReport {
   const movimentadores: MoverReportItem[] = [];
 
   for (const { movimentador, rows } of input) {
-    const [headerRow = [], ...dataRows] = rows;
-    const headers = headerRow.map(String);
+    const { headers, dataRows } = findHeaderAndDataRows(rows, [
+      "data",
+      "moviment",
+      "quant",
+      "qtd",
+      "total",
+    ]);
 
     const dateColumn = findDateColumn(headers);
     const movementColumns = matchColumns(headers, [
@@ -179,7 +236,7 @@ export function buildMoversReport(
 
     for (const row of dataRows) {
       const rowDate = toIsoDate(row[dateColumn] ?? "");
-      if (dateFilter && rowDate !== dateFilter) {
+      if (!shouldIncludeRow(rowDate, dateFilter, yearFilter)) {
         continue;
       }
 
@@ -203,6 +260,7 @@ export function buildMoversReport(
   return {
     generatedAt: new Date().toISOString(),
     dateFilter,
+    yearFilter,
     totalMovimentacoes,
     movimentadores,
   };

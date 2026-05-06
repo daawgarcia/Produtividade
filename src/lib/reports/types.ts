@@ -1,11 +1,9 @@
-export type OperatorMetricKey = "preparo" | "liberacao" | "scanner" | "mio" | "air";
+export type OperatorMetricKey = "preparo" | "liberacao" | "scanner";
 
 export interface OperatorTotals {
   preparo: number;
   liberacao: number;
   scanner: number;
-  mio: number;
-  air: number;
   total: number;
 }
 
@@ -16,6 +14,7 @@ export interface OperatorReportItem extends OperatorTotals {
 export interface OperatorsReport {
   generatedAt: string;
   dateFilter: string | null;
+  yearFilter: number | null;
   totals: OperatorTotals;
   operators: OperatorReportItem[];
 }
@@ -28,6 +27,7 @@ export interface MoverReportItem {
 export interface MoversReport {
   generatedAt: string;
   dateFilter: string | null;
+  yearFilter: number | null;
   totalMovimentacoes: number;
   movimentadores: MoverReportItem[];
 }

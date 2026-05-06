@@ -28,9 +28,10 @@ async function withCache<T>(
 
 export async function getOperatorsReport(
   dateFilter: string | null,
+  yearFilter: number | null,
   forceRefresh = false
 ): Promise<OperatorsReport> {
-  const cacheKey = `operators:${dateFilter ?? "all"}`;
+  const cacheKey = `operators:${dateFilter ?? "all"}:${yearFilter ?? "all"}`;
 
   return withCache(
     cacheKey,
@@ -42,7 +43,7 @@ export async function getOperatorsReport(
         })
       );
 
-      return buildOperatorsReport(rowsByOperator, dateFilter);
+      return buildOperatorsReport(rowsByOperator, dateFilter, yearFilter);
     },
     forceRefresh
   );
@@ -50,9 +51,10 @@ export async function getOperatorsReport(
 
 export async function getMoversReport(
   dateFilter: string | null,
+  yearFilter: number | null,
   forceRefresh = false
 ): Promise<MoversReport> {
-  const cacheKey = `movers:${dateFilter ?? "all"}`;
+  const cacheKey = `movers:${dateFilter ?? "all"}:${yearFilter ?? "all"}`;
 
   return withCache(
     cacheKey,
@@ -64,7 +66,7 @@ export async function getMoversReport(
         })
       );
 
-      return buildMoversReport(rowsByMovimentador, dateFilter);
+      return buildMoversReport(rowsByMovimentador, dateFilter, yearFilter);
     },
     forceRefresh
   );

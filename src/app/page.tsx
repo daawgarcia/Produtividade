@@ -24,6 +24,7 @@ function formatDateLabel(iso: string | null): string {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("operators");
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
   const [operatorsData, setOperatorsData] = useState<OperatorsReport | null>(null);
   const [moversData, setMoversData] = useState<MoversReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,12 +32,20 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const queryDate = useMemo(() => selectedDate || null, [selectedDate]);
+  const queryYear = useMemo(() => (selectedYear ? Number(selectedYear) : null), [selectedYear]);
+  const availableYears = useMemo(() => {
+    const now = new Date().getFullYear();
+    return Array.from({ length: 6 }, (_, index) => String(now - index));
+  }, []);
 
   const fetchReports = useCallback(
     async (forceRefresh: boolean) => {
       const params = new URLSearchParams();
       if (queryDate) {
         params.set("date", queryDate);
+      }
+      if (queryYear) {
+        params.set("year", String(queryYear));
       }
       if (forceRefresh) {
         params.set("refresh", "1");
@@ -70,7 +79,7 @@ export default function Home() {
       setMoversData(moversPayload);
       setError(null);
     },
-    [queryDate]
+    [queryDate, queryYear]
   );
 
   useEffect(() => {
@@ -122,7 +131,7 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="brand-card flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
+      <header className="brand-card brand-header flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
         <div className="flex items-center gap-4">
           <Image
             src="/esthetic-aligner-logo.svg"
@@ -142,6 +151,18 @@ export default function Home() {
         </div>
 
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <select
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
+            className="rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+          >
+            <option value="">Todos os anos</option>
+            {availableYears.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
           <input
             type="date"
             value={selectedDate}
@@ -192,10 +213,14 @@ export default function Home() {
 
       {activeTab === "operators" ? (
         <section className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
             <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Filtro</p>
               <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
+            </article>
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Ano</p>
+              <p className="text-lg font-bold text-brand-primary">{queryYear ?? "Todos"}</p>
             </article>
             <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Preparo</p>
@@ -210,12 +235,8 @@ export default function Home() {
               <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.scanner ?? 0)}</p>
             </article>
             <article className="brand-card p-4">
-              <p className="text-xs uppercase text-slate-500">Mio</p>
-              <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.mio ?? 0)}</p>
-            </article>
-            <article className="brand-card p-4">
-              <p className="text-xs uppercase text-slate-500">Air</p>
-              <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.air ?? 0)}</p>
+              <p className="text-xs uppercase text-slate-500">Total</p>
+              <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.total ?? 0)}</p>
             </article>
           </div>
 
@@ -231,8 +252,6 @@ export default function Home() {
                     <th className="px-4 py-3">Preparo</th>
                     <th className="px-4 py-3">Liberação</th>
                     <th className="px-4 py-3">Scanner</th>
-                    <th className="px-4 py-3">Mio</th>
-                    <th className="px-4 py-3">Air</th>
                     <th className="px-4 py-3">Total</th>
                   </tr>
                 </thead>
@@ -243,8 +262,6 @@ export default function Home() {
                       <td className="px-4 py-3">{formatNumber(item.preparo)}</td>
                       <td className="px-4 py-3">{formatNumber(item.liberacao)}</td>
                       <td className="px-4 py-3">{formatNumber(item.scanner)}</td>
-                      <td className="px-4 py-3">{formatNumber(item.mio)}</td>
-                      <td className="px-4 py-3">{formatNumber(item.air)}</td>
                       <td className="px-4 py-3 font-bold text-brand-primary">{formatNumber(item.total)}</td>
                     </tr>
                   ))}
@@ -261,14 +278,12 @@ export default function Home() {
               <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
             </article>
             <article className="brand-card p-4">
-              <p className="text-xs uppercase text-slate-500">Movimentações</p>
-              <p className="text-3xl font-bold text-brand-primary">{formatNumber(moversData?.totalMovimentacoes ?? 0)}</p>
+              <p className="text-xs uppercase text-slate-500">Ano</p>
+              <p className="text-lg font-bold text-brand-primary">{queryYear ?? "Todos"}</p>
             </article>
             <article className="brand-card p-4">
-              <p className="text-xs uppercase text-slate-500">Visão</p>
-              <p className="text-lg font-semibold text-slate-700">
-                {queryDate ? "Somente o dia selecionado" : "Acumulado geral"}
-              </p>
+              <p className="text-xs uppercase text-slate-500">Movimentações</p>
+              <p className="text-3xl font-bold text-brand-primary">{formatNumber(moversData?.totalMovimentacoes ?? 0)}</p>
             </article>
           </div>
 

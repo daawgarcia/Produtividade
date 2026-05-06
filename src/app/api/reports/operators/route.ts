@@ -13,15 +13,28 @@ function parseDateFilter(rawDate: string | null): string | null {
   return rawDate;
 }
 
+function parseYearFilter(rawYear: string | null): number | null {
+  if (!rawYear) {
+    return null;
+  }
+
+  if (!/^\d{4}$/.test(rawYear)) {
+    throw new Error("Formato de ano invalido. Use YYYY.");
+  }
+
+  return Number(rawYear);
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const date = parseDateFilter(url.searchParams.get("date"));
+    const year = parseYearFilter(url.searchParams.get("year"));
     const refresh = ["1", "true", "yes"].includes(
       (url.searchParams.get("refresh") ?? "").toLowerCase()
     );
 
-    const report = await getOperatorsReport(date, refresh);
+    const report = await getOperatorsReport(date, year, refresh);
 
     return NextResponse.json(report, {
       headers: {

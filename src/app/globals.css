@@ -41,3 +41,9 @@ body {
   border-radius: 16px;
   box-shadow: 0 12px 30px rgba(15, 95, 120, 0.1);
 }
+
+.brand-header {
+  background:
+    linear-gradient(135deg, rgba(15, 95, 120, 0.08), rgba(31, 138, 168, 0.04)),
+    var(--card-bg);
+}
