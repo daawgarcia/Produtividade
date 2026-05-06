@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f7fb;
+  --foreground: #12243a;
+  --brand-primary: #0f5f78;
+  --brand-secondary: #1f8aa8;
+  --brand-accent: #d7b06a;
+  --card-bg: #ffffff;
+  --card-border: #d7e2f0;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background:
+    radial-gradient(circle at 15% 0%, #deecff 0%, transparent 45%),
+    radial-gradient(circle at 100% 0%, #d9fff3 0%, transparent 35%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+* {
+  box-sizing: border-box;
+}
+
+.brand-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(15, 95, 120, 0.1);
 }

@@ -1,0 +1,13 @@
+<svg width="760" height="160" viewBox="0 0 760 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="eaGradient" x1="20" y1="20" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5F86D6"/>
+      <stop offset="1" stop-color="#6B63C6"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="54" fill="url(#eaGradient)"/>
+  <path d="M51 106V54H92V59.5H57.5V77H88V82.5H57.5V100.5H92.5V106H51Z" fill="white"/>
+  <path d="M119 106V54H125.5L147.5 93.5L169.5 54H176V106H169.5V66.5L149.5 102.5H145.5L125.5 66.5V106H119Z" fill="white"/>
+  <rect x="198" y="28" width="4" height="104" rx="2" fill="#5A8DD7"/>
+  <text x="246" y="106" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="300" fill="#5A8DD7">Esthetic Aligner</text>
+</svg>
