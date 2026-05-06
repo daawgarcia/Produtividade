@@ -38,7 +38,8 @@ function getSheetsClient() {
 async function resolveSheetName(
   spreadsheetId: string,
   gid?: number,
-  preferredSheetName?: string
+  preferredSheetName?: string,
+  requirePreferred = false
 ): Promise<string> {
   const sheets = getSheetsClient();
 
@@ -60,6 +61,23 @@ async function resolveSheetName(
     );
     if (byName?.properties?.title) {
       return byName.properties.title;
+    }
+
+    const byPartialName = availableSheets.find((sheet) => {
+      const normalizedTitle = normalizeText(sheet.properties?.title ?? "");
+      return (
+        normalizedTitle.includes(normalizedPreferred) ||
+        normalizedPreferred.includes(normalizedTitle)
+      );
+    });
+    if (byPartialName?.properties?.title) {
+      return byPartialName.properties.title;
+    }
+
+    if (requirePreferred) {
+      throw new Error(
+        `Aba "${preferredSheetName}" nao encontrada na planilha ${spreadsheetId}`
+      );
     }
   }
 
@@ -96,10 +114,16 @@ export async function getSheetRows(spreadsheetId: string, gid?: number): Promise
 export async function getSheetRowsByName(
   spreadsheetId: string,
   sheetName: string,
-  gid?: number
+  gid?: number,
+  requireSheetName = false
 ): Promise<string[][]> {
   const sheets = getSheetsClient();
-  const resolvedName = await resolveSheetName(spreadsheetId, gid, sheetName);
+  const resolvedName = await resolveSheetName(
+    spreadsheetId,
+    gid,
+    sheetName,
+    requireSheetName
+  );
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,

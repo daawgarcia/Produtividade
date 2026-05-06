@@ -7,6 +7,34 @@ const TWO_MINUTES_MS = 2 * 60 * 1000;
 
 const cache = new Map<string, { createdAt: number; data: unknown }>();
 
+const MONTH_NAMES_PT_BR = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+function resolveMonthName(dateFilter: string | null): string {
+  if (dateFilter) {
+    const parts = dateFilter.split("-");
+    const monthNumber = Number(parts[1]);
+    const monthName = MONTH_NAMES_PT_BR[monthNumber - 1];
+    if (monthName) {
+      return monthName;
+    }
+  }
+
+  return MONTH_NAMES_PT_BR[new Date().getMonth()];
+}
+
 async function withCache<T>(
   key: string,
   loader: () => Promise<T>,
@@ -31,14 +59,20 @@ export async function getOperatorsReport(
   yearFilter: number | null,
   forceRefresh = false
 ): Promise<OperatorsReport> {
-  const cacheKey = `operators:${dateFilter ?? "all"}:${yearFilter ?? "all"}`;
+  const monthName = resolveMonthName(dateFilter);
+  const cacheKey = `operators:${dateFilter ?? "all"}:${yearFilter ?? "all"}:${monthName}`;
 
   return withCache(
     cacheKey,
     async () => {
       const rowsByOperator = await Promise.all(
         OPERATOR_SOURCES.map(async (source) => {
-          const rows = await getSheetRows(source.spreadsheetId, source.gid);
+          const rows = await getSheetRowsByName(
+            source.spreadsheetId,
+            monthName,
+            source.gid,
+            false
+          );
           return { operator: source.name, rows };
         })
       );
@@ -62,7 +96,12 @@ export async function getMoversReport(
       const rowsByMovimentador = await Promise.all(
         MOVER_SOURCES.map(async (source) => {
           const rows = source.sheetName
-            ? await getSheetRowsByName(source.spreadsheetId, source.sheetName, source.gid)
+            ? await getSheetRowsByName(
+                source.spreadsheetId,
+                source.sheetName,
+                source.gid,
+                true
+              )
             : await getSheetRows(source.spreadsheetId, source.gid);
           return { movimentador: source.name, rows };
         })
