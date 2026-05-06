@@ -1,5 +1,5 @@
 import { MOVER_SOURCES, OPERATOR_SOURCES } from "@/lib/reports/config";
-import { getSheetRows } from "@/lib/reports/googleSheets";
+import { getSheetRows, getSheetRowsByName } from "@/lib/reports/googleSheets";
 import { buildMoversReport, buildOperatorsReport } from "@/lib/reports/parsers";
 import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 
@@ -61,7 +61,9 @@ export async function getMoversReport(
     async () => {
       const rowsByMovimentador = await Promise.all(
         MOVER_SOURCES.map(async (source) => {
-          const rows = await getSheetRows(source.spreadsheetId, source.gid);
+          const rows = source.sheetName
+            ? await getSheetRowsByName(source.spreadsheetId, source.sheetName, source.gid)
+            : await getSheetRows(source.spreadsheetId, source.gid);
           return { movimentador: source.name, rows };
         })
       );

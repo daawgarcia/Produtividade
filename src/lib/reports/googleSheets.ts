@@ -2,6 +2,14 @@ import { google } from "googleapis";
 
 const SHEETS_SCOPE = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -27,7 +35,11 @@ function getSheetsClient() {
   return google.sheets({ version: "v4", auth });
 }
 
-async function resolveSheetName(spreadsheetId: string, gid?: number): Promise<string> {
+async function resolveSheetName(
+  spreadsheetId: string,
+  gid?: number,
+  preferredSheetName?: string
+): Promise<string> {
   const sheets = getSheetsClient();
 
   const metadata = await sheets.spreadsheets.get({
@@ -38,6 +50,17 @@ async function resolveSheetName(spreadsheetId: string, gid?: number): Promise<st
   const availableSheets = metadata.data.sheets ?? [];
   if (!availableSheets.length) {
     throw new Error(`Nenhuma aba encontrada na planilha ${spreadsheetId}`);
+  }
+
+  if (preferredSheetName) {
+    const normalizedPreferred = normalizeText(preferredSheetName);
+    const byName = availableSheets.find(
+      (sheet) =>
+        normalizeText(sheet.properties?.title ?? "") === normalizedPreferred
+    );
+    if (byName?.properties?.title) {
+      return byName.properties.title;
+    }
   }
 
   if (typeof gid === "number") {
@@ -64,6 +87,23 @@ export async function getSheetRows(spreadsheetId: string, gid?: number): Promise
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `'${sheetName}'!A:ZZ`,
+  });
+
+  const rows = response.data.values ?? [];
+  return rows.map((row) => row.map((cell) => String(cell ?? "")));
+}
+
+export async function getSheetRowsByName(
+  spreadsheetId: string,
+  sheetName: string,
+  gid?: number
+): Promise<string[][]> {
+  const sheets = getSheetsClient();
+  const resolvedName = await resolveSheetName(spreadsheetId, gid, sheetName);
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${resolvedName}'!A:ZZ`,
   });
 
   const rows = response.data.values ?? [];

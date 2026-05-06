@@ -2,6 +2,7 @@ export interface SheetSource {
   name: string;
   spreadsheetId: string;
   gid?: number;
+  sheetName?: string;
 }
 
 function parseSpreadsheetId(url: string): string {
@@ -22,11 +23,16 @@ function parseGid(url: string): number | undefined {
   return Number(gidMatch[1]);
 }
 
-function makeSheetSource(name: string, url: string): SheetSource {
+function makeSheetSource(
+  name: string,
+  url: string,
+  options?: { sheetName?: string }
+): SheetSource {
   return {
     name,
     spreadsheetId: parseSpreadsheetId(url),
     gid: parseGid(url),
+    sheetName: options?.sheetName,
   };
 }
 
@@ -60,14 +66,17 @@ export const OPERATOR_SOURCES: SheetSource[] = [
 export const MOVER_SOURCES: SheetSource[] = [
   makeSheetSource(
     "Gabriel",
-    "https://docs.google.com/spreadsheets/d/16fu4jT0hMhyz9a78ftqVdBTbxiNUGwuTMs_OrY1tevY/edit?gid=2116979790#gid=2116979790"
+    "https://docs.google.com/spreadsheets/d/16fu4jT0hMhyz9a78ftqVdBTbxiNUGwuTMs_OrY1tevY/edit?gid=2116979790#gid=2116979790",
+    { sheetName: "BASE GERAL" }
   ),
   makeSheetSource(
     "Ariane",
-    "https://docs.google.com/spreadsheets/d/1RVFr6QzPPJnE2R3c_Wqcfbvb2HcuXTOu3eurr8M6Q-o?authuser=otavio.garcia2805%40gmail.com&usp=drive_fs"
+    "https://docs.google.com/spreadsheets/d/1RVFr6QzPPJnE2R3c_Wqcfbvb2HcuXTOu3eurr8M6Q-o?authuser=otavio.garcia2805%40gmail.com&usp=drive_fs",
+    { sheetName: "BASE GERAL" }
   ),
   makeSheetSource(
     "Pietro",
-    "https://docs.google.com/spreadsheets/d/1iUlHNLy-e1hXLLjTBJHF9WGhRFYIjzKNvaCZuytz9wM?authuser=otavio.garcia2805%40gmail.com&usp=drive_fs"
+    "https://docs.google.com/spreadsheets/d/1iUlHNLy-e1hXLLjTBJHF9WGhRFYIjzKNvaCZuytz9wM?authuser=otavio.garcia2805%40gmail.com&usp=drive_fs",
+    { sheetName: "BASE GERAL" }
   ),
 ];
