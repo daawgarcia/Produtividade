@@ -144,17 +144,23 @@ export function buildOperatorsReport(
       "scanner",
       "prepar",
       "libera",
+      "mio",
+      "air",
     ]);
 
     const dateColumn = findDateColumn(headers);
     const preparoColumns = matchColumns(headers, ["prepar"]);
     const liberacaoColumns = matchColumns(headers, ["libera"]);
     const scannerColumns = matchColumns(headers, ["scanner"]);
+    const mioColumns = matchColumns(headers, ["mio"]);
+    const airColumns = matchColumns(headers, ["air"]);
 
     const metrics = {
       preparo: 0,
       liberacao: 0,
       scanner: 0,
+      mio: 0,
+      air: 0,
     };
 
     for (const row of dataRows) {
@@ -172,9 +178,16 @@ export function buildOperatorsReport(
       for (const column of scannerColumns) {
         metrics.scanner += parseNumber(row[column] ?? "0");
       }
+      for (const column of mioColumns) {
+        metrics.mio += parseNumber(row[column] ?? "0");
+      }
+      for (const column of airColumns) {
+        metrics.air += parseNumber(row[column] ?? "0");
+      }
     }
 
-    const total = metrics.preparo + metrics.liberacao + metrics.scanner;
+    const total =
+      metrics.preparo + metrics.liberacao + metrics.scanner + metrics.mio + metrics.air;
 
     operators.push({
       operator,
@@ -188,6 +201,8 @@ export function buildOperatorsReport(
       acc.preparo += item.preparo;
       acc.liberacao += item.liberacao;
       acc.scanner += item.scanner;
+      acc.mio += item.mio;
+      acc.air += item.air;
       acc.total += item.total;
       return acc;
     },
@@ -195,6 +210,8 @@ export function buildOperatorsReport(
       preparo: 0,
       liberacao: 0,
       scanner: 0,
+      mio: 0,
+      air: 0,
       total: 0,
     }
   );
