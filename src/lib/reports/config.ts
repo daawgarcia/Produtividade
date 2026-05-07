@@ -61,6 +61,10 @@ export const OPERATOR_SOURCES: SheetSource[] = [
     "Pedro",
     "https://docs.google.com/spreadsheets/d/1Tt4UJLLDr3mB0RmB63aBMe90U7XgBP4M7j1_tC16dJI/edit?gid=1541752272#gid=1541752272"
   ),
+  makeSheetSource(
+    "Marcos",
+    "https://docs.google.com/spreadsheets/d/17YX-m4k7ggf9OlAoblw2OqP1t9PL4D8BL9Zu3uYTSCo/edit?gid=1541752272#gid=1541752272"
+  ),
 ];
 
 export const MOVER_SOURCES: SheetSource[] = [
