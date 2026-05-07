@@ -22,6 +22,33 @@ const MONTH_NAMES_PT_BR = [
   "Dezembro",
 ];
 
+const REQUIRED_OPERATORS = ["Marcos", "Mariana"];
+
+function ensureRequiredOperators(report: OperatorsReport): OperatorsReport {
+  const present = new Set(report.operators.map((item) => item.operator));
+  const missing = REQUIRED_OPERATORS.filter((name) => !present.has(name));
+
+  if (!missing.length) {
+    return report;
+  }
+
+  return {
+    ...report,
+    operators: [
+      ...report.operators,
+      ...missing.map((operator) => ({
+        operator,
+        preparo: 0,
+        liberacao: 0,
+        scanner: 0,
+        mio: 0,
+        air: 0,
+        total: 0,
+      })),
+    ],
+  };
+}
+
 function resolveMonthName(dateFilter: string | null): string {
   if (dateFilter) {
     const parts = dateFilter.split("-");
@@ -77,7 +104,8 @@ export async function getOperatorsReport(
         })
       );
 
-      return buildOperatorsReport(rowsByOperator, dateFilter, yearFilter);
+      const report = buildOperatorsReport(rowsByOperator, dateFilter, yearFilter);
+      return ensureRequiredOperators(report);
     },
     forceRefresh
   );
