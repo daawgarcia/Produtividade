@@ -107,14 +107,22 @@ function findHeaderAndDataRows(
 function shouldIncludeRow(
   rowDate: string | null,
   dateFilter: string | null,
+  monthFilter: number | null,
   yearFilter: number | null
 ): boolean {
   if (!rowDate) {
-    return !dateFilter && !yearFilter;
+    return !dateFilter && !monthFilter && !yearFilter;
   }
 
   if (dateFilter && rowDate !== dateFilter) {
     return false;
+  }
+
+  if (monthFilter) {
+    const month = Number(rowDate.split("-")[1]);
+    if (month !== monthFilter) {
+      return false;
+    }
   }
 
   if (yearFilter && !rowDate.startsWith(`${yearFilter}-`)) {
@@ -134,6 +142,7 @@ function matchColumns(headers: string[], patterns: string[]): number[] {
 export function buildOperatorsReport(
   input: Array<{ operator: string; rows: string[][] }>,
   dateFilter: string | null,
+  monthFilter: number | null,
   yearFilter: number | null
 ): OperatorsReport {
   const operators: OperatorReportItem[] = [];
@@ -165,7 +174,7 @@ export function buildOperatorsReport(
 
     for (const row of dataRows) {
       const rowDate = toIsoDate(row[dateColumn] ?? "");
-      if (!shouldIncludeRow(rowDate, dateFilter, yearFilter)) {
+      if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
       }
 
@@ -219,6 +228,7 @@ export function buildOperatorsReport(
   return {
     generatedAt: new Date().toISOString(),
     dateFilter,
+    monthFilter,
     yearFilter,
     totals,
     operators,
@@ -228,6 +238,7 @@ export function buildOperatorsReport(
 export function buildMoversReport(
   input: Array<{ movimentador: string; rows: string[][] }>,
   dateFilter: string | null,
+  monthFilter: number | null,
   yearFilter: number | null
 ): MoversReport {
   const movimentadores: MoverReportItem[] = [];
@@ -253,7 +264,7 @@ export function buildMoversReport(
 
     for (const row of dataRows) {
       const rowDate = toIsoDate(row[dateColumn] ?? "");
-      if (!shouldIncludeRow(rowDate, dateFilter, yearFilter)) {
+      if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
       }
 
@@ -277,6 +288,7 @@ export function buildMoversReport(
   return {
     generatedAt: new Date().toISOString(),
     dateFilter,
+    monthFilter,
     yearFilter,
     totalMovimentacoes,
     movimentadores,

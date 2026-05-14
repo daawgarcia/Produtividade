@@ -7,6 +7,20 @@ import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 type TabKey = "operators" | "movers";
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
+const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("pt-BR").format(value);
@@ -21,9 +35,18 @@ function formatDateLabel(iso: string | null): string {
   return `${day}/${month}/${year}`;
 }
 
+function formatMonthLabel(month: number | null): string {
+  if (!month) {
+    return "Todos";
+  }
+
+  return MONTH_LABELS[month - 1] ?? "Todos";
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("operators");
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [operatorsData, setOperatorsData] = useState<OperatorsReport | null>(null);
   const [moversData, setMoversData] = useState<MoversReport | null>(null);
@@ -32,7 +55,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const queryDate = useMemo(() => selectedDate || null, [selectedDate]);
+  const queryMonth = useMemo(() => (selectedMonth ? Number(selectedMonth) : null), [selectedMonth]);
   const queryYear = useMemo(() => (selectedYear ? Number(selectedYear) : null), [selectedYear]);
+  const availableMonths = useMemo(
+    () => MONTH_LABELS.map((label, index) => ({ value: String(index + 1), label })),
+    []
+  );
   const availableYears = useMemo(() => {
     const now = new Date().getFullYear();
     return Array.from({ length: 6 }, (_, index) => String(now - index));
@@ -46,6 +74,9 @@ export default function Home() {
       }
       if (queryYear) {
         params.set("year", String(queryYear));
+      }
+      if (queryMonth) {
+        params.set("month", String(queryMonth));
       }
       if (forceRefresh) {
         params.set("refresh", "1");
@@ -79,7 +110,7 @@ export default function Home() {
       setMoversData(moversPayload);
       setError(null);
     },
-    [queryDate, queryYear]
+    [queryDate, queryMonth, queryYear]
   );
 
   useEffect(() => {
@@ -152,6 +183,18 @@ export default function Home() {
 
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <select
+            value={selectedMonth}
+            onChange={(event) => setSelectedMonth(event.target.value)}
+            className="rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+          >
+            <option value="">Todos os meses</option>
+            {availableMonths.map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+          <select
             value={selectedYear}
             onChange={(event) => setSelectedYear(event.target.value)}
             className="rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
@@ -219,6 +262,10 @@ export default function Home() {
               <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
             </article>
             <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Mês</p>
+              <p className="text-lg font-bold text-brand-primary">{formatMonthLabel(queryMonth)}</p>
+            </article>
+            <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Ano</p>
               <p className="text-lg font-bold text-brand-primary">{queryYear ?? "Todos"}</p>
             </article>
@@ -284,10 +331,14 @@ export default function Home() {
         </section>
       ) : (
         <section className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Filtro</p>
               <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
+            </article>
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Mês</p>
+              <p className="text-lg font-bold text-brand-primary">{formatMonthLabel(queryMonth)}</p>
             </article>
             <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Ano</p>
