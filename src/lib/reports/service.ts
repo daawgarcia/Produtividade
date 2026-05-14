@@ -49,11 +49,18 @@ function ensureRequiredOperators(report: OperatorsReport): OperatorsReport {
   };
 }
 
-function resolveMonthName(dateFilter: string | null): string {
+function resolveMonthName(dateFilter: string | null, monthFilter: number | null): string {
   if (dateFilter) {
     const parts = dateFilter.split("-");
     const monthNumber = Number(parts[1]);
     const monthName = MONTH_NAMES_PT_BR[monthNumber - 1];
+    if (monthName) {
+      return monthName;
+    }
+  }
+
+  if (monthFilter) {
+    const monthName = MONTH_NAMES_PT_BR[monthFilter - 1];
     if (monthName) {
       return monthName;
     }
@@ -83,11 +90,12 @@ async function withCache<T>(
 
 export async function getOperatorsReport(
   dateFilter: string | null,
+  monthFilter: number | null,
   yearFilter: number | null,
   forceRefresh = false
 ): Promise<OperatorsReport> {
-  const monthName = resolveMonthName(dateFilter);
-  const cacheKey = `operators:${dateFilter ?? "all"}:${yearFilter ?? "all"}:${monthName}`;
+  const monthName = resolveMonthName(dateFilter, monthFilter);
+  const cacheKey = `operators:${dateFilter ?? "all"}:${monthFilter ?? "all"}:${yearFilter ?? "all"}:${monthName}`;
 
   return withCache(
     cacheKey,
@@ -104,7 +112,7 @@ export async function getOperatorsReport(
         })
       );
 
-      const report = buildOperatorsReport(rowsByOperator, dateFilter, yearFilter);
+      const report = buildOperatorsReport(rowsByOperator, dateFilter, monthFilter, yearFilter);
       return ensureRequiredOperators(report);
     },
     forceRefresh
@@ -113,10 +121,11 @@ export async function getOperatorsReport(
 
 export async function getMoversReport(
   dateFilter: string | null,
+  monthFilter: number | null,
   yearFilter: number | null,
   forceRefresh = false
 ): Promise<MoversReport> {
-  const cacheKey = `movers:${dateFilter ?? "all"}:${yearFilter ?? "all"}`;
+  const cacheKey = `movers:${dateFilter ?? "all"}:${monthFilter ?? "all"}:${yearFilter ?? "all"}`;
 
   return withCache(
     cacheKey,
@@ -135,7 +144,7 @@ export async function getMoversReport(
         })
       );
 
-      return buildMoversReport(rowsByMovimentador, dateFilter, yearFilter);
+      return buildMoversReport(rowsByMovimentador, dateFilter, monthFilter, yearFilter);
     },
     forceRefresh
   );
