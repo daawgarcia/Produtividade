@@ -466,6 +466,10 @@ function pickBestRowDate(
   return rowDates[0] ?? null;
 }
 
+function hasSameMonthDay(isoA: string, isoB: string): boolean {
+  return isoA.slice(5, 10) === isoB.slice(5, 10);
+}
+
 function matchColumns(headers: string[], patterns: string[]): number[] {
   return headers
     .map((header, index) => ({ header: normalizeText(header), index }))
@@ -534,13 +538,29 @@ export function buildOperatorsReport(
     const caseColumn = findCaseColumn(headers);
     const timeColumn = findTimeColumn(headers);
 
+    const hasExactDateMatch = dateFilter
+      ? dataRows.some((row) =>
+          dateColumns.some((columnIndex) => {
+            const iso = toIsoDate(String(row[columnIndex] ?? ""));
+            return iso === dateFilter;
+          })
+        )
+      : false;
+
     for (const row of dataRows) {
       const rowDates = dateColumns
         .map((columnIndex) => toIsoDate(String(row[columnIndex] ?? "")))
         .filter((value): value is string => Boolean(value));
 
       const rowDate = pickBestRowDate(rowDates, dateFilter, monthFilter, yearFilter);
-      if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
+      const includeByFallback = Boolean(
+        dateFilter &&
+          !hasExactDateMatch &&
+          rowDate &&
+          hasSameMonthDay(rowDate, dateFilter)
+      );
+
+      if (!includeByFallback && !shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
       }
 
@@ -714,6 +734,15 @@ export function inspectOperatorRows(
     air: 0,
   };
 
+  const hasExactDateMatch = dateFilter
+    ? dataRows.some((row) =>
+        dateColumns.some((columnIndex) => {
+          const iso = toIsoDate(String(row[columnIndex] ?? ""));
+          return iso === dateFilter;
+        })
+      )
+    : false;
+
   for (const row of dataRows) {
     const rowDates = dateColumns
       .map((columnIndex) => ({
@@ -740,7 +769,14 @@ export function inspectOperatorRows(
       dateFrequency.set(entry.iso, (dateFrequency.get(entry.iso) ?? 0) + 1);
     }
 
-    if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
+    const includeByFallback = Boolean(
+      dateFilter &&
+        !hasExactDateMatch &&
+        rowDate &&
+        hasSameMonthDay(rowDate, dateFilter)
+    );
+
+    if (!includeByFallback && !shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
       continue;
     }
 
