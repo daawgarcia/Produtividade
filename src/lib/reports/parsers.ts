@@ -344,7 +344,7 @@ function findHeaderAndDataRows(
   rows: string[][],
   keywords: string[]
 ): { headers: string[]; dataRows: string[][] } {
-  const scanLimit = Math.min(rows.length, 12);
+  const scanLimit = Math.min(rows.length, 80);
   let bestIndex = 0;
   let bestScore = -1;
 
@@ -359,7 +359,47 @@ function findHeaderAndDataRows(
       return acc + (keywords.some((keyword) => cell.includes(keyword)) ? 1 : 0);
     }, 0);
 
-    const score = keywordMatches * 10 + nonEmptyCells;
+    const dateColumns = normalized
+      .map((cell, index) => ({ cell, index }))
+      .filter((item) => /(data|dia|date)/.test(item.cell))
+      .map((item) => item.index);
+
+    const valueColumns = normalized
+      .map((cell, index) => ({ cell, index }))
+      .filter((item) => {
+        if (!item.cell) {
+          return false;
+        }
+        if (/(data|dia|date|caso|case)/.test(item.cell)) {
+          return false;
+        }
+        return keywords.some((keyword) => item.cell.includes(keyword));
+      })
+      .map((item) => item.index);
+
+    let dataSignal = 0;
+    const sampleRows = rows.slice(rowIndex + 1, rowIndex + 41);
+    for (const sampleRow of sampleRows) {
+      const dateColumnsToUse = dateColumns.length
+        ? dateColumns
+        : sampleRow.map((_, index) => index).slice(0, 3);
+
+      if (
+        dateColumnsToUse.some((columnIndex) =>
+          Boolean(toIsoDate(String(sampleRow[columnIndex] ?? "")))
+        )
+      ) {
+        dataSignal += 3;
+      }
+
+      for (const columnIndex of valueColumns) {
+        if (parseNumber(String(sampleRow[columnIndex] ?? "0")) > 0) {
+          dataSignal += 2;
+        }
+      }
+    }
+
+    const score = keywordMatches * 10 + nonEmptyCells + dataSignal;
     if (score > bestScore) {
       bestScore = score;
       bestIndex = rowIndex;
