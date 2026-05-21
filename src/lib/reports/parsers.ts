@@ -1,3 +1,4 @@
+// Debug Inspector Version: 2026-05-21 18:37:38
 import type {
   MoverReportItem,
   MoversReport,
@@ -761,6 +762,7 @@ export function inspectOperatorRows(
   }
 
   return {
+    inspectorVersion: "v2-header-signal",
     headers,
     totalRows: rows.length,
     dataRows: dataRows.length,
