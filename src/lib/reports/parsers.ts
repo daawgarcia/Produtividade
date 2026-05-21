@@ -28,6 +28,20 @@ function parseNumber(value: string): number {
 
 const DEDUP_START_DATE = "2026-05-01";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const UI_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function formatTimestampForUi(timestamp: number): string {
+  return UI_DATE_TIME_FORMATTER.format(new Date(timestamp));
+}
 
 function toIsoDate(value: string): string | null {
   const trimmed = value.trim();
@@ -358,8 +372,8 @@ export function buildOperatorsReport(
         metric: event.metric,
         firstOperator: lastAccepted.operator,
         duplicateOperator: event.operator,
-        firstTimestamp: new Date(lastAccepted.timestamp).toISOString(),
-        duplicateTimestamp: new Date(event.timestamp).toISOString(),
+        firstTimestamp: formatTimestampForUi(lastAccepted.timestamp),
+        duplicateTimestamp: formatTimestampForUi(event.timestamp),
       });
       continue;
     }
