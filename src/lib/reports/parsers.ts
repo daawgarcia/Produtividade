@@ -705,6 +705,7 @@ export function inspectOperatorRows(
 
   let includedRows = 0;
   const dateMatchesPerColumn: Record<number, number> = {};
+  const dateFrequency = new Map<string, number>();
   const sumsBeforeDedup = {
     preparo: 0,
     liberacao: 0,
@@ -734,6 +735,11 @@ export function inspectOperatorRows(
       monthFilter,
       yearFilter
     );
+
+    for (const entry of rowDates) {
+      dateFrequency.set(entry.iso, (dateFrequency.get(entry.iso) ?? 0) + 1);
+    }
+
     if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
       continue;
     }
@@ -770,6 +776,10 @@ export function inspectOperatorRows(
     metricColumns,
     includedRows,
     dateMatchesPerColumn,
+    topDates: Array.from(dateFrequency.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([date, count]) => ({ date, count })),
     sumsBeforeDedup,
   };
 }
