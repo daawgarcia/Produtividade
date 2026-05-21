@@ -13,6 +13,15 @@ export interface OperatorReportItem extends OperatorTotals {
   operator: string;
 }
 
+export interface OperatorDuplicateItem {
+  caseId: string;
+  metric: OperatorMetricKey;
+  firstOperator: string;
+  duplicateOperator: string;
+  firstTimestamp: string;
+  duplicateTimestamp: string;
+}
+
 export interface OperatorsReport {
   generatedAt: string;
   dateFilter: string | null;
@@ -20,6 +29,7 @@ export interface OperatorsReport {
   yearFilter: number | null;
   totals: OperatorTotals;
   operators: OperatorReportItem[];
+  duplicates: OperatorDuplicateItem[];
 }
 
 export interface MoverReportItem {

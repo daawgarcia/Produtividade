@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 
-type TabKey = "operators" | "movers";
+type TabKey = "operators" | "movers" | "duplicates";
+type DuplicateFilterField = "none" | "caseId" | "metric" | "firstOperator" | "duplicateOperator";
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const MONTH_LABELS = [
@@ -43,6 +44,23 @@ function formatMonthLabel(month: number | null): string {
   return MONTH_LABELS[month - 1] ?? "Todos";
 }
 
+function formatMetricLabel(metric: string): string {
+  switch (metric) {
+    case "preparo":
+      return "Preparo";
+    case "liberacao":
+      return "Liberação";
+    case "scanner":
+      return "Scanner";
+    case "mio":
+      return "MIO";
+    case "air":
+      return "AIR";
+    default:
+      return metric;
+  }
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("operators");
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -53,6 +71,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateFilterField, setDuplicateFilterField] =
+    useState<DuplicateFilterField>("none");
+  const [duplicateFilterValue, setDuplicateFilterValue] = useState<string>("");
 
   const queryDate = useMemo(() => selectedDate || null, [selectedDate]);
   const queryMonth = useMemo(() => (selectedMonth ? Number(selectedMonth) : null), [selectedMonth]);
@@ -65,6 +86,60 @@ export default function Home() {
     const now = new Date().getFullYear();
     return Array.from({ length: 6 }, (_, index) => String(now - index));
   }, []);
+
+  const duplicateFilterOptions = useMemo(() => {
+    const duplicates = operatorsData?.duplicates ?? [];
+
+    if (duplicateFilterField === "none") {
+      return [];
+    }
+
+    const values = duplicates.map((item) => {
+      switch (duplicateFilterField) {
+        case "caseId":
+          return item.caseId.toUpperCase();
+        case "metric":
+          return formatMetricLabel(item.metric);
+        case "firstOperator":
+          return item.firstOperator;
+        case "duplicateOperator":
+          return item.duplicateOperator;
+        default:
+          return "";
+      }
+    });
+
+    return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b, "pt-BR")
+    );
+  }, [operatorsData?.duplicates, duplicateFilterField]);
+
+  const filteredDuplicates = useMemo(() => {
+    const duplicates = operatorsData?.duplicates ?? [];
+
+    if (duplicateFilterField === "none" || !duplicateFilterValue) {
+      return duplicates;
+    }
+
+    return duplicates.filter((item) => {
+      switch (duplicateFilterField) {
+        case "caseId":
+          return item.caseId.toUpperCase() === duplicateFilterValue;
+        case "metric":
+          return formatMetricLabel(item.metric) === duplicateFilterValue;
+        case "firstOperator":
+          return item.firstOperator === duplicateFilterValue;
+        case "duplicateOperator":
+          return item.duplicateOperator === duplicateFilterValue;
+        default:
+          return true;
+      }
+    });
+  }, [operatorsData?.duplicates, duplicateFilterField, duplicateFilterValue]);
+
+  useEffect(() => {
+    setDuplicateFilterValue("");
+  }, [duplicateFilterField]);
 
   const fetchReports = useCallback(
     async (forceRefresh: boolean) => {
@@ -247,6 +322,17 @@ export default function Home() {
           >
             Movimentadores
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("duplicates")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "duplicates"
+                ? "bg-brand-primary text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            Duplicidades
+          </button>
         </div>
       </section>
 
@@ -329,7 +415,7 @@ export default function Home() {
             </div>
           </div>
         </section>
-      ) : (
+      ) : activeTab === "movers" ? (
         <section className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <article className="brand-card p-4">
@@ -371,6 +457,118 @@ export default function Home() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Filtro</p>
+              <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
+            </article>
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Mês</p>
+              <p className="text-lg font-bold text-brand-primary">{formatMonthLabel(queryMonth)}</p>
+            </article>
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Ano</p>
+              <p className="text-lg font-bold text-brand-primary">{queryYear ?? "Todos"}</p>
+            </article>
+            <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Duplicidades</p>
+              <p className="text-3xl font-bold text-brand-primary">
+                {formatNumber(filteredDuplicates.length)}
+              </p>
+            </article>
+          </div>
+
+          <div className="brand-card p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                  Filtrar por
+                </label>
+                <select
+                  value={duplicateFilterField}
+                  onChange={(event) =>
+                    setDuplicateFilterField(event.target.value as DuplicateFilterField)
+                  }
+                  className="w-full rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+                >
+                  <option value="none">Sem filtro</option>
+                  <option value="caseId">Caso</option>
+                  <option value="metric">Etapa</option>
+                  <option value="firstOperator">Primeiro operador</option>
+                  <option value="duplicateOperator">Operador que duplicou</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                  Valor
+                </label>
+                <select
+                  value={duplicateFilterValue}
+                  onChange={(event) => setDuplicateFilterValue(event.target.value)}
+                  disabled={duplicateFilterField === "none"}
+                  className="w-full rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">Todos</option>
+                  {duplicateFilterOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="brand-card overflow-hidden">
+            <div className="border-b border-card-border bg-slate-50 px-4 py-3">
+              <h2 className="font-semibold text-brand-primary">Casos Duplicados (Regra a partir de 01/05/2026)</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-card-border text-left text-slate-500">
+                    <th className="px-4 py-3">Caso</th>
+                    <th className="px-4 py-3">Etapa</th>
+                    <th className="px-4 py-3">Primeiro operador</th>
+                    <th className="px-4 py-3">Data/Hora primeiro</th>
+                    <th className="px-4 py-3">Operador que duplicou</th>
+                    <th className="px-4 py-3">Data/Hora duplicado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDuplicates.length ? (
+                    filteredDuplicates.map((item, index) => (
+                      <tr
+                        key={`${item.caseId}-${item.metric}-${item.firstOperator}-${item.duplicateOperator}-${item.duplicateTimestamp}-${index}`}
+                        className="border-b border-card-border/70 text-slate-700"
+                      >
+                        <td className="px-4 py-3 font-medium uppercase">{item.caseId}</td>
+                        <td className="px-4 py-3">{formatMetricLabel(item.metric)}</td>
+                        <td className="px-4 py-3">{item.firstOperator}</td>
+                        <td className="px-4 py-3">
+                          {new Date(item.firstTimestamp).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-red-700">{item.duplicateOperator}</td>
+                        <td className="px-4 py-3">
+                          {new Date(item.duplicateTimestamp).toLocaleString("pt-BR")}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                        Nenhuma duplicidade encontrada para o filtro selecionado.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

@@ -1,6 +1,8 @@
 import type {
   MoverReportItem,
   MoversReport,
+  OperatorDuplicateItem,
+  OperatorMetricKey,
   OperatorReportItem,
   OperatorsReport,
 } from "@/lib/reports/types";
@@ -23,6 +25,9 @@ function parseNumber(value: string): number {
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+const DEDUP_START_DATE = "2026-05-01";
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 function toIsoDate(value: string): string | null {
   const trimmed = value.trim();
@@ -67,9 +72,75 @@ function toIsoDate(value: string): string | null {
   return null;
 }
 
+function toTimestamp(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const direct = new Date(trimmed);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct.getTime();
+  }
+
+  const slashDateTime = trimmed.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (slashDateTime) {
+    const day = slashDateTime[1].padStart(2, "0");
+    const month = slashDateTime[2].padStart(2, "0");
+    const year =
+      slashDateTime[3].length === 2 ? `20${slashDateTime[3]}` : slashDateTime[3];
+    const hour = (slashDateTime[4] ?? "0").padStart(2, "0");
+    const minute = (slashDateTime[5] ?? "0").padStart(2, "0");
+    const second = (slashDateTime[6] ?? "0").padStart(2, "0");
+    const parsed = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
+  const dashDateTime = trimmed.match(
+    /^(\d{1,2})-(\d{1,2})-(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (dashDateTime) {
+    const day = dashDateTime[1].padStart(2, "0");
+    const month = dashDateTime[2].padStart(2, "0");
+    const year =
+      dashDateTime[3].length === 2 ? `20${dashDateTime[3]}` : dashDateTime[3];
+    const hour = (dashDateTime[4] ?? "0").padStart(2, "0");
+    const minute = (dashDateTime[5] ?? "0").padStart(2, "0");
+    const second = (dashDateTime[6] ?? "0").padStart(2, "0");
+    const parsed = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
+  const maybeNumber = Number(trimmed);
+  if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
+    const unixMs = Math.round((maybeNumber - 25569) * 86400 * 1000);
+    if (!Number.isNaN(unixMs)) {
+      return unixMs;
+    }
+  }
+
+  return null;
+}
+
 function findDateColumn(headers: string[]): number {
   const index = headers.findIndex((header) => /(data|dia|date)/.test(normalizeText(header)));
   return index >= 0 ? index : 0;
+}
+
+function findCaseColumn(headers: string[]): number | null {
+  const index = headers.findIndex((header) => /(caso|case)/.test(normalizeText(header)));
+  return index >= 0 ? index : null;
+}
+
+function normalizeCaseId(value: string): string | null {
+  const normalized = value.trim().replace(/\s/g, "").replace(/[^a-zA-Z0-9-]/g, "");
+  return normalized ? normalized.toLowerCase() : null;
 }
 
 function findHeaderAndDataRows(
@@ -145,7 +216,37 @@ export function buildOperatorsReport(
   monthFilter: number | null,
   yearFilter: number | null
 ): OperatorsReport {
-  const operators: OperatorReportItem[] = [];
+  const metricsByOperator = new Map<
+    string,
+    { preparo: number; liberacao: number; scanner: number; mio: number; air: number }
+  >();
+
+  type CaseEvent = {
+    operator: string;
+    metric: OperatorMetricKey;
+    caseId: string;
+    timestamp: number;
+  };
+
+  const dedupEvents: CaseEvent[] = [];
+  const duplicates: OperatorDuplicateItem[] = [];
+
+  function getOperatorMetrics(operator: string) {
+    const existing = metricsByOperator.get(operator);
+    if (existing) {
+      return existing;
+    }
+
+    const created = {
+      preparo: 0,
+      liberacao: 0,
+      scanner: 0,
+      mio: 0,
+      air: 0,
+    };
+    metricsByOperator.set(operator, created);
+    return created;
+  }
 
   for (const { operator, rows } of input) {
     const { headers, dataRows } = findHeaderAndDataRows(rows, [
@@ -164,46 +265,114 @@ export function buildOperatorsReport(
     const mioColumns = matchColumns(headers, ["mio"]);
     const airColumns = matchColumns(headers, ["air"]);
 
-    const metrics = {
-      preparo: 0,
-      liberacao: 0,
-      scanner: 0,
-      mio: 0,
-      air: 0,
-    };
+    const metrics = getOperatorMetrics(operator);
+    const caseColumn = findCaseColumn(headers);
 
     for (const row of dataRows) {
-      const rowDate = toIsoDate(row[dateColumn] ?? "");
+      const rawDateCell = row[dateColumn] ?? "";
+      const rowDate = toIsoDate(rawDateCell);
       if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
       }
 
-      for (const column of preparoColumns) {
-        metrics.preparo += parseNumber(row[column] ?? "0");
-      }
-      for (const column of liberacaoColumns) {
-        metrics.liberacao += parseNumber(row[column] ?? "0");
-      }
-      for (const column of scannerColumns) {
-        metrics.scanner += parseNumber(row[column] ?? "0");
-      }
-      for (const column of mioColumns) {
-        metrics.mio += parseNumber(row[column] ?? "0");
-      }
-      for (const column of airColumns) {
-        metrics.air += parseNumber(row[column] ?? "0");
+      const applyDedupRule = Boolean(
+        rowDate && rowDate >= DEDUP_START_DATE && caseColumn !== null
+      );
+
+      const caseId = applyDedupRule
+        ? normalizeCaseId(String(row[caseColumn ?? -1] ?? ""))
+        : null;
+
+      const rowTimestamp = toTimestamp(String(rawDateCell)) ?? 0;
+
+      const metricColumns: Array<{ metric: OperatorMetricKey; columns: number[] }> = [
+        { metric: "preparo", columns: preparoColumns },
+        { metric: "liberacao", columns: liberacaoColumns },
+        { metric: "scanner", columns: scannerColumns },
+        { metric: "mio", columns: mioColumns },
+        { metric: "air", columns: airColumns },
+      ];
+
+      for (const metricColumn of metricColumns) {
+        const rawValue = metricColumn.columns.reduce(
+          (acc, column) => acc + parseNumber(row[column] ?? "0"),
+          0
+        );
+
+        if (rawValue <= 0) {
+          continue;
+        }
+
+        if (applyDedupRule && caseId) {
+          dedupEvents.push({
+            operator,
+            metric: metricColumn.metric,
+            caseId,
+            timestamp: rowTimestamp,
+          });
+          continue;
+        }
+
+        metrics[metricColumn.metric] += rawValue;
       }
     }
+  }
 
+  dedupEvents.sort((a, b) => {
+    if (a.timestamp !== b.timestamp) {
+      return a.timestamp - b.timestamp;
+    }
+    return a.operator.localeCompare(b.operator);
+  });
+
+  const lastAcceptedByCaseAndMetric = new Map<
+    string,
+    { timestamp: number; operator: string }
+  >();
+  for (const event of dedupEvents) {
+    const dedupKey = `${event.metric}:${event.caseId}`;
+    const lastAccepted = lastAcceptedByCaseAndMetric.get(dedupKey);
+
+    if (
+      lastAccepted !== undefined &&
+      event.timestamp - lastAccepted.timestamp < THIRTY_DAYS_MS
+    ) {
+      duplicates.push({
+        caseId: event.caseId,
+        metric: event.metric,
+        firstOperator: lastAccepted.operator,
+        duplicateOperator: event.operator,
+        firstTimestamp: new Date(lastAccepted.timestamp).toISOString(),
+        duplicateTimestamp: new Date(event.timestamp).toISOString(),
+      });
+      continue;
+    }
+
+    const metrics = getOperatorMetrics(event.operator);
+    metrics[event.metric] += 1;
+    lastAcceptedByCaseAndMetric.set(dedupKey, {
+      timestamp: event.timestamp,
+      operator: event.operator,
+    });
+  }
+
+  duplicates.sort((a, b) => {
+    const tsA = new Date(a.duplicateTimestamp).getTime();
+    const tsB = new Date(b.duplicateTimestamp).getTime();
+    return tsB - tsA;
+  });
+
+  const operators: OperatorReportItem[] = input.map(({ operator }) => {
+    const metrics = getOperatorMetrics(operator);
     const total =
       metrics.preparo + metrics.liberacao + metrics.scanner + metrics.mio + metrics.air;
 
-    operators.push({
+    return {
       operator,
       ...metrics,
       total,
-    });
-  }
+    };
+  });
 
   const totals = operators.reduce(
     (acc, item) => {
@@ -232,6 +401,7 @@ export function buildOperatorsReport(
     yearFilter,
     totals,
     operators,
+    duplicates,
   };
 }
 
