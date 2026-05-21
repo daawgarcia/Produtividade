@@ -24,6 +24,66 @@ const MONTH_NAMES_PT_BR = [
 
 const REQUIRED_OPERATORS = ["Marcos", "Mariana"];
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isoToBrDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function scoreRowsSignal(rows: string[][], dateFilter: string | null): number {
+  if (!rows.length) {
+    return -1;
+  }
+
+  const sampleRows = rows.slice(0, 250);
+  const headerRows = rows.slice(0, 12);
+  let score = 0;
+
+  // Prefer datasets that look like the expected report headers.
+  for (const row of headerRows) {
+    for (const cell of row) {
+      const text = normalizeText(String(cell ?? ""));
+      if (
+        text.includes("data") ||
+        text.includes("caso") ||
+        text.includes("prepar") ||
+        text.includes("libera") ||
+        text.includes("scanner") ||
+        text.includes("mio") ||
+        text.includes("air")
+      ) {
+        score += 2;
+      }
+    }
+  }
+
+  // Prefer datasets with more useful rows.
+  score += Math.min(rows.length, 300) / 10;
+
+  if (dateFilter) {
+    const brDate = isoToBrDate(dateFilter);
+    const compactBrDate = brDate.replace(/^0/, "").replace("/0", "/");
+
+    for (const row of sampleRows) {
+      for (const cell of row) {
+        const text = String(cell ?? "");
+        if (text.includes(brDate) || text.includes(compactBrDate) || text.includes(dateFilter)) {
+          score += 8;
+        }
+      }
+    }
+  }
+
+  return score;
+}
+
 function ensureRequiredOperators(report: OperatorsReport): OperatorsReport {
   const present = new Set(report.operators.map((item) => item.operator));
   const missing = REQUIRED_OPERATORS.filter((name) => !present.has(name));
@@ -102,12 +162,19 @@ export async function getOperatorsReport(
     async () => {
       const rowsByOperator = await Promise.all(
         OPERATOR_SOURCES.map(async (source) => {
-          const rows = await getSheetRowsByName(
+          const monthRows = await getSheetRowsByName(
             source.spreadsheetId,
             monthName,
             source.gid,
             false
           );
+
+          const fallbackRows = await getSheetRows(source.spreadsheetId, source.gid);
+
+          const monthScore = scoreRowsSignal(monthRows, dateFilter);
+          const fallbackScore = scoreRowsSignal(fallbackRows, dateFilter);
+          const rows = fallbackScore > monthScore ? fallbackRows : monthRows;
+
           return { operator: source.name, rows };
         })
       );
