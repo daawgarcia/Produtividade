@@ -185,12 +185,38 @@ function isStrictDateLikeText(value: string): boolean {
 function findDateColumn(headers: string[], dataRows: string[][]): number {
   const normalizedHeaders = headers.map((header) => normalizeText(header));
 
-  // First, prefer explicit date headers to avoid misclassifying CASO numeric columns.
-  const explicitDateHeaderIndex = normalizedHeaders.findIndex((header) =>
-    /(data|dia|date|datahora|data\/hora)/.test(header)
-  );
-  if (explicitDateHeaderIndex >= 0) {
-    return explicitDateHeaderIndex;
+  const explicitDateHeaderIndexes = normalizedHeaders
+    .map((header, index) => ({ header, index }))
+    .filter((item) => /(data|dia|date|datahora|data\/hora)/.test(item.header))
+    .map((item) => item.index);
+
+  // If there are explicit date headers (e.g. DATA and Data/Hora), choose the one
+  // with the strongest parseable-date signal from real rows.
+  if (explicitDateHeaderIndexes.length > 0) {
+    let bestIndex = explicitDateHeaderIndexes[0];
+    let bestScore = -1;
+
+    for (const columnIndex of explicitDateHeaderIndexes) {
+      let parseableCount = 0;
+      for (const row of dataRows.slice(0, 120)) {
+        const raw = String(row[columnIndex] ?? "");
+        if (toIsoDate(raw)) {
+          parseableCount += 1;
+        }
+      }
+
+      // Small bonus to keep DATA preferred when signals tie.
+      const header = normalizedHeaders[columnIndex] ?? "";
+      const headerBonus = header === "data" ? 1 : 0;
+      const score = parseableCount * 3 + headerBonus;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = columnIndex;
+      }
+    }
+
+    return bestIndex;
   }
 
   const maxColumns = Math.max(
