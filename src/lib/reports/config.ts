@@ -55,7 +55,7 @@ export const OPERATOR_SOURCES: SheetSource[] = [
   ),
   makeSheetSource(
     "Isabelle",
-    "https://docs.google.com/spreadsheets/d/1q1qbHkIWSgyzuE95IEABR14ztLkNHOjroy-DOZkJFIM/edit"
+    "https://docs.google.com/spreadsheets/d/1q1qbHkIWSgyzuE95IEABR14ztLkNHOjroy-DOZkJFIM/edit?gid=1541752272#gid=1541752272"
   ),
   makeSheetSource(
     "Pedro",

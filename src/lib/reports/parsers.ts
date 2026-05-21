@@ -254,6 +254,35 @@ function findDateColumn(headers: string[], dataRows: string[][]): number {
   return bestIndex;
 }
 
+function findDateColumns(headers: string[], dataRows: string[][]): number[] {
+  const primary = findDateColumn(headers, dataRows);
+  const normalizedHeaders = headers.map((header) => normalizeText(header));
+
+  const explicit = normalizedHeaders
+    .map((header, index) => ({ header, index }))
+    .filter((item) => /(data|dia|date|datahora|data\/hora)/.test(item.header))
+    .map((item) => item.index);
+
+  const unique = new Set<number>([primary]);
+
+  for (const columnIndex of explicit) {
+    if (columnIndex === primary) {
+      continue;
+    }
+
+    const parseableCount = dataRows.slice(0, 120).reduce((acc, row) => {
+      const raw = String(row[columnIndex] ?? "");
+      return acc + (toIsoDate(raw) ? 1 : 0);
+    }, 0);
+
+    if (parseableCount > 0) {
+      unique.add(columnIndex);
+    }
+  }
+
+  return Array.from(unique);
+}
+
 function findCaseColumn(headers: string[]): number | null {
   const index = headers.findIndex((header) => /(caso|case)/.test(normalizeText(header)));
   return index >= 0 ? index : null;
@@ -371,6 +400,31 @@ function shouldIncludeRow(
   return true;
 }
 
+function pickBestRowDate(
+  rowDates: string[],
+  dateFilter: string | null,
+  monthFilter: number | null,
+  yearFilter: number | null
+): string | null {
+  if (!rowDates.length) {
+    return null;
+  }
+
+  const exactMatch = dateFilter ? rowDates.find((item) => item === dateFilter) : null;
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const monthYearMatch = rowDates.find((item) =>
+    shouldIncludeRow(item, null, monthFilter, yearFilter)
+  );
+  if (monthYearMatch) {
+    return monthYearMatch;
+  }
+
+  return rowDates[0] ?? null;
+}
+
 function matchColumns(headers: string[], patterns: string[]): number[] {
   return headers
     .map((header, index) => ({ header: normalizeText(header), index }))
@@ -427,7 +481,8 @@ export function buildOperatorsReport(
       "air",
     ]);
 
-    const dateColumn = findDateColumn(headers, dataRows);
+    const dateColumns = findDateColumns(headers, dataRows);
+    const dateColumn = dateColumns[0] ?? 0;
     const preparoColumns = matchColumns(headers, ["prepar"]);
     const liberacaoColumns = matchColumns(headers, ["libera"]);
     const scannerColumns = matchColumns(headers, ["scanner"]);
@@ -439,13 +494,18 @@ export function buildOperatorsReport(
     const timeColumn = findTimeColumn(headers);
 
     for (const row of dataRows) {
-      const rawDateCell = row[dateColumn] ?? "";
-      const rawTimeCell = timeColumn !== null ? String(row[timeColumn] ?? "") : null;
-      const rowDateTime = combineDateAndTime(String(rawDateCell), rawTimeCell);
-      const rowDate = toIsoDate(rawDateCell);
+      const rowDates = dateColumns
+        .map((columnIndex) => toIsoDate(String(row[columnIndex] ?? "")))
+        .filter((value): value is string => Boolean(value));
+
+      const rowDate = pickBestRowDate(rowDates, dateFilter, monthFilter, yearFilter);
       if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
       }
+
+      const rawDateCell = row[dateColumn] ?? "";
+      const rawTimeCell = timeColumn !== null ? String(row[timeColumn] ?? "") : null;
+      const rowDateTime = combineDateAndTime(String(rawDateCell), rawTimeCell);
 
       const applyDedupRule = Boolean(
         rowDate && rowDate >= DEDUP_START_DATE && caseColumn !== null
