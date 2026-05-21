@@ -43,6 +43,11 @@ function formatTimestampForUi(timestamp: number): string {
   return UI_DATE_TIME_FORMATTER.format(new Date(timestamp));
 }
 
+function parseExcelSerialToLocalDate(serial: number): Date {
+  const excelEpochLocal = new Date(1899, 11, 30, 0, 0, 0, 0);
+  return new Date(excelEpochLocal.getTime() + Math.round(serial * 86400 * 1000));
+}
+
 function toIsoDate(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -71,10 +76,12 @@ function toIsoDate(value: string): string | null {
 
   const maybeNumber = Number(trimmed);
   if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
-    const unixMs = Math.round((maybeNumber - 25569) * 86400 * 1000);
-    const date = new Date(unixMs);
+    const date = parseExcelSerialToLocalDate(maybeNumber);
     if (!Number.isNaN(date.getTime())) {
-      return date.toISOString().slice(0, 10);
+      const year = String(date.getFullYear());
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     }
   }
 
@@ -149,9 +156,9 @@ function toTimestamp(value: string): number | null {
 
   const maybeNumber = Number(trimmed);
   if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
-    const unixMs = Math.round((maybeNumber - 25569) * 86400 * 1000);
-    if (!Number.isNaN(unixMs)) {
-      return unixMs;
+    const parsed = parseExcelSerialToLocalDate(maybeNumber);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
     }
   }
 
@@ -166,6 +173,53 @@ function findDateColumn(headers: string[]): number {
 function findCaseColumn(headers: string[]): number | null {
   const index = headers.findIndex((header) => /(caso|case)/.test(normalizeText(header)));
   return index >= 0 ? index : null;
+}
+
+function findTimeColumn(headers: string[]): number | null {
+  const index = headers.findIndex((header) => {
+    const normalized = normalizeText(header);
+    return /(hora|horario|time)/.test(normalized) && !/(data|date|dia)/.test(normalized);
+  });
+  return index >= 0 ? index : null;
+}
+
+function normalizeTimePart(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const serial = Number(trimmed);
+  if (Number.isFinite(serial) && serial >= 0 && serial < 1) {
+    const totalSeconds = Math.round(serial * 24 * 60 * 60);
+    const hours = String(Math.floor(totalSeconds / 3600) % 24).padStart(2, "0");
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  const hm = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (hm) {
+    const hour = hm[1].padStart(2, "0");
+    const minute = hm[2];
+    const second = (hm[3] ?? "00").padStart(2, "0");
+    return `${hour}:${minute}:${second}`;
+  }
+
+  return null;
+}
+
+function combineDateAndTime(dateCell: string, timeCell: string | null): string {
+  if (!timeCell || /\d{1,2}:\d{2}/.test(dateCell)) {
+    return dateCell;
+  }
+
+  const normalizedTime = normalizeTimePart(timeCell);
+  if (!normalizedTime) {
+    return dateCell;
+  }
+
+  return `${dateCell} ${normalizedTime}`;
 }
 
 function normalizeCaseId(value: string): string | null {
@@ -297,9 +351,12 @@ export function buildOperatorsReport(
 
     const metrics = getOperatorMetrics(operator);
     const caseColumn = findCaseColumn(headers);
+    const timeColumn = findTimeColumn(headers);
 
     for (const row of dataRows) {
       const rawDateCell = row[dateColumn] ?? "";
+      const rawTimeCell = timeColumn !== null ? String(row[timeColumn] ?? "") : null;
+      const rowDateTime = combineDateAndTime(String(rawDateCell), rawTimeCell);
       const rowDate = toIsoDate(rawDateCell);
       if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
         continue;
@@ -313,7 +370,7 @@ export function buildOperatorsReport(
         ? normalizeCaseId(String(row[caseColumn ?? -1] ?? ""))
         : null;
 
-      const rowTimestamp = toTimestamp(String(rawDateCell)) ?? 0;
+      const rowTimestamp = toTimestamp(rowDateTime) ?? toTimestamp(String(rawDateCell)) ?? 0;
 
       const metricColumns: Array<{ metric: OperatorMetricKey; columns: number[] }> = [
         { metric: "preparo", columns: preparoColumns },
