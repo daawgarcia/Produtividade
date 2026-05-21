@@ -553,13 +553,9 @@ export default function Home() {
                         <td className="px-4 py-3 font-medium uppercase">{item.caseId}</td>
                         <td className="px-4 py-3">{formatMetricLabel(item.metric)}</td>
                         <td className="px-4 py-3">{item.firstOperator}</td>
-                        <td className="px-4 py-3">
-                          {new Date(item.firstTimestamp).toLocaleString("pt-BR")}
-                        </td>
+                        <td className="px-4 py-3">{item.firstTimestamp}</td>
                         <td className="px-4 py-3 font-semibold text-red-700">{item.duplicateOperator}</td>
-                        <td className="px-4 py-3">
-                          {new Date(item.duplicateTimestamp).toLocaleString("pt-BR")}
-                        </td>
+                        <td className="px-4 py-3">{item.duplicateTimestamp}</td>
                       </tr>
                     ))
                   ) : (
