@@ -165,9 +165,36 @@ function toTimestamp(value: string): number | null {
   return null;
 }
 
-function findDateColumn(headers: string[]): number {
-  const index = headers.findIndex((header) => /(data|dia|date)/.test(normalizeText(header)));
-  return index >= 0 ? index : 0;
+function findDateColumn(headers: string[], dataRows: string[][]): number {
+  const normalizedHeaders = headers.map((header) => normalizeText(header));
+  const maxColumns = Math.max(
+    headers.length,
+    ...dataRows.slice(0, 20).map((row) => row.length)
+  );
+
+  let bestIndex = 0;
+  let bestScore = -1;
+
+  for (let columnIndex = 0; columnIndex < maxColumns; columnIndex++) {
+    const header = normalizedHeaders[columnIndex] ?? "";
+    const headerBonus = /(data|dia|date|datahora|data\/hora)/.test(header) ? 10 : 0;
+
+    let parseableCount = 0;
+    for (const row of dataRows.slice(0, 20)) {
+      const iso = toIsoDate(String(row[columnIndex] ?? ""));
+      if (iso) {
+        parseableCount += 1;
+      }
+    }
+
+    const score = headerBonus + parseableCount * 3;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = columnIndex;
+    }
+  }
+
+  return bestIndex;
 }
 
 function findCaseColumn(headers: string[]): number | null {
@@ -335,6 +362,7 @@ export function buildOperatorsReport(
   for (const { operator, rows } of input) {
     const { headers, dataRows } = findHeaderAndDataRows(rows, [
       "data",
+      "caso",
       "scanner",
       "prepar",
       "libera",
@@ -342,7 +370,7 @@ export function buildOperatorsReport(
       "air",
     ]);
 
-    const dateColumn = findDateColumn(headers);
+    const dateColumn = findDateColumn(headers, dataRows);
     const preparoColumns = matchColumns(headers, ["prepar"]);
     const liberacaoColumns = matchColumns(headers, ["libera"]);
     const scannerColumns = matchColumns(headers, ["scanner"]);
@@ -509,7 +537,7 @@ export function buildMoversReport(
       "total",
     ]);
 
-    const dateColumn = findDateColumn(headers);
+    const dateColumn = findDateColumn(headers, dataRows);
     const movementColumns = matchColumns(headers, [
       "moviment",
       "quantidade",
