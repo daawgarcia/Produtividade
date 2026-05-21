@@ -637,6 +637,101 @@ export function buildOperatorsReport(
   };
 }
 
+export function inspectOperatorRows(
+  rows: string[][],
+  dateFilter: string | null,
+  monthFilter: number | null,
+  yearFilter: number | null
+) {
+  const { headers, dataRows } = findHeaderAndDataRows(rows, [
+    "data",
+    "caso",
+    "scanner",
+    "prepar",
+    "libera",
+    "mio",
+    "air",
+  ]);
+
+  const dateColumns = findDateColumns(headers, dataRows);
+  const metricColumns = {
+    preparo: matchColumns(headers, ["prepar"]),
+    liberacao: matchColumns(headers, ["libera"]),
+    scanner: matchColumns(headers, ["scanner"]),
+    mio: matchColumns(headers, ["mio"]),
+    air: matchColumns(headers, ["air"]),
+  };
+
+  let includedRows = 0;
+  const dateMatchesPerColumn: Record<number, number> = {};
+  const sumsBeforeDedup = {
+    preparo: 0,
+    liberacao: 0,
+    scanner: 0,
+    mio: 0,
+    air: 0,
+  };
+
+  for (const row of dataRows) {
+    const rowDates = dateColumns
+      .map((columnIndex) => ({
+        columnIndex,
+        iso: toIsoDate(String(row[columnIndex] ?? "")),
+      }))
+      .filter((entry): entry is { columnIndex: number; iso: string } => Boolean(entry.iso));
+
+    for (const entry of rowDates) {
+      if (dateFilter && entry.iso === dateFilter) {
+        dateMatchesPerColumn[entry.columnIndex] =
+          (dateMatchesPerColumn[entry.columnIndex] ?? 0) + 1;
+      }
+    }
+
+    const rowDate = pickBestRowDate(
+      rowDates.map((entry) => entry.iso),
+      dateFilter,
+      monthFilter,
+      yearFilter
+    );
+    if (!shouldIncludeRow(rowDate, dateFilter, monthFilter, yearFilter)) {
+      continue;
+    }
+
+    includedRows += 1;
+    sumsBeforeDedup.preparo += metricColumns.preparo.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+    sumsBeforeDedup.liberacao += metricColumns.liberacao.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+    sumsBeforeDedup.scanner += metricColumns.scanner.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+    sumsBeforeDedup.mio += metricColumns.mio.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+    sumsBeforeDedup.air += metricColumns.air.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+  }
+
+  return {
+    headers,
+    totalRows: rows.length,
+    dataRows: dataRows.length,
+    dateColumns,
+    metricColumns,
+    includedRows,
+    dateMatchesPerColumn,
+    sumsBeforeDedup,
+  };
+}
+
 export function buildMoversReport(
   input: Array<{ movimentador: string; rows: string[][] }>,
   dateFilter: string | null,

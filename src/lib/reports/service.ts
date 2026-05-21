@@ -1,6 +1,10 @@
 import { MOVER_SOURCES, OPERATOR_SOURCES } from "@/lib/reports/config";
 import { getSheetRows, getSheetRowsByName } from "@/lib/reports/googleSheets";
-import { buildMoversReport, buildOperatorsReport } from "@/lib/reports/parsers";
+import {
+  buildMoversReport,
+  buildOperatorsReport,
+  inspectOperatorRows,
+} from "@/lib/reports/parsers";
 import type { MoversReport, OperatorsReport } from "@/lib/reports/types";
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
@@ -184,6 +188,66 @@ export async function getOperatorsReport(
     },
     forceRefresh
   );
+}
+
+export async function getOperatorDebugReport(
+  operatorName: string,
+  dateFilter: string | null,
+  monthFilter: number | null,
+  yearFilter: number | null
+) {
+  const normalizedTarget = normalizeText(operatorName);
+  const source = OPERATOR_SOURCES.find(
+    (item) => normalizeText(item.name) === normalizedTarget
+  );
+
+  if (!source) {
+    throw new Error(`Operador nao encontrado: ${operatorName}`);
+  }
+
+  const monthName = resolveMonthName(dateFilter, monthFilter);
+
+  const monthRows = await getSheetRowsByName(
+    source.spreadsheetId,
+    monthName,
+    source.gid,
+    false
+  );
+  const fallbackRows = await getSheetRows(source.spreadsheetId, source.gid);
+
+  const monthScore = scoreRowsSignal(monthRows, dateFilter);
+  const fallbackScore = scoreRowsSignal(fallbackRows, dateFilter);
+  const rows = fallbackScore > monthScore ? fallbackRows : monthRows;
+  const selectedSource = fallbackScore > monthScore ? "fallback" : "month";
+
+  const inspection = inspectOperatorRows(rows, dateFilter, monthFilter, yearFilter);
+  const report = buildOperatorsReport(
+    [{ operator: source.name, rows }],
+    dateFilter,
+    monthFilter,
+    yearFilter
+  );
+  const operatorReport = report.operators[0] ?? null;
+
+  return {
+    source: {
+      name: source.name,
+      spreadsheetId: source.spreadsheetId,
+      gid: source.gid ?? null,
+      monthName,
+      selectedSource,
+      monthRows: monthRows.length,
+      fallbackRows: fallbackRows.length,
+      monthScore,
+      fallbackScore,
+    },
+    inspection,
+    report: {
+      operator: operatorReport,
+      totals: report.totals,
+      duplicates: report.duplicates.length,
+    },
+  };
 }
 
 export async function getMoversReport(
