@@ -105,6 +105,8 @@ export async function getSheetRows(spreadsheetId: string, gid?: number): Promise
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `'${sheetName}'!A:ZZ`,
+    valueRenderOption: "UNFORMATTED_VALUE",
+    dateTimeRenderOption: "SERIAL_NUMBER",
   });
 
   const rows = response.data.values ?? [];
@@ -128,6 +130,8 @@ export async function getSheetRowsByName(
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `'${resolvedName}'!A:ZZ`,
+    valueRenderOption: "UNFORMATTED_VALUE",
+    dateTimeRenderOption: "SERIAL_NUMBER",
   });
 
   const rows = response.data.values ?? [];
