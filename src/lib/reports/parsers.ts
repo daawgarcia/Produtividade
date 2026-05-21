@@ -78,6 +78,22 @@ function toTimestamp(value: string): number | null {
     return null;
   }
 
+  const isoDateTime = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (isoDateTime) {
+    const year = Number(isoDateTime[1]);
+    const month = Number(isoDateTime[2]);
+    const day = Number(isoDateTime[3]);
+    const hour = Number(isoDateTime[4] ?? "0");
+    const minute = Number(isoDateTime[5] ?? "0");
+    const second = Number(isoDateTime[6] ?? "0");
+    const parsed = new Date(year, month - 1, day, hour, minute, second);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
   const direct = new Date(trimmed);
   if (!Number.isNaN(direct.getTime())) {
     return direct.getTime();
@@ -91,10 +107,10 @@ function toTimestamp(value: string): number | null {
     const month = slashDateTime[2].padStart(2, "0");
     const year =
       slashDateTime[3].length === 2 ? `20${slashDateTime[3]}` : slashDateTime[3];
-    const hour = (slashDateTime[4] ?? "0").padStart(2, "0");
-    const minute = (slashDateTime[5] ?? "0").padStart(2, "0");
-    const second = (slashDateTime[6] ?? "0").padStart(2, "0");
-    const parsed = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+    const hour = Number((slashDateTime[4] ?? "0").padStart(2, "0"));
+    const minute = Number((slashDateTime[5] ?? "0").padStart(2, "0"));
+    const second = Number((slashDateTime[6] ?? "0").padStart(2, "0"));
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day), hour, minute, second);
     if (!Number.isNaN(parsed.getTime())) {
       return parsed.getTime();
     }
@@ -108,10 +124,10 @@ function toTimestamp(value: string): number | null {
     const month = dashDateTime[2].padStart(2, "0");
     const year =
       dashDateTime[3].length === 2 ? `20${dashDateTime[3]}` : dashDateTime[3];
-    const hour = (dashDateTime[4] ?? "0").padStart(2, "0");
-    const minute = (dashDateTime[5] ?? "0").padStart(2, "0");
-    const second = (dashDateTime[6] ?? "0").padStart(2, "0");
-    const parsed = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+    const hour = Number((dashDateTime[4] ?? "0").padStart(2, "0"));
+    const minute = Number((dashDateTime[5] ?? "0").padStart(2, "0"));
+    const second = Number((dashDateTime[6] ?? "0").padStart(2, "0"));
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day), hour, minute, second);
     if (!Number.isNaN(parsed.getTime())) {
       return parsed.getTime();
     }
