@@ -165,8 +165,34 @@ function toTimestamp(value: string): number | null {
   return null;
 }
 
+function isStrictDateLikeText(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    return true;
+  }
+
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+}
+
 function findDateColumn(headers: string[], dataRows: string[][]): number {
   const normalizedHeaders = headers.map((header) => normalizeText(header));
+
+  // First, prefer explicit date headers to avoid misclassifying CASO numeric columns.
+  const explicitDateHeaderIndex = normalizedHeaders.findIndex((header) =>
+    /(data|dia|date|datahora|data\/hora)/.test(header)
+  );
+  if (explicitDateHeaderIndex >= 0) {
+    return explicitDateHeaderIndex;
+  }
+
   const maxColumns = Math.max(
     headers.length,
     ...dataRows.slice(0, 20).map((row) => row.length)
@@ -177,11 +203,16 @@ function findDateColumn(headers: string[], dataRows: string[][]): number {
 
   for (let columnIndex = 0; columnIndex < maxColumns; columnIndex++) {
     const header = normalizedHeaders[columnIndex] ?? "";
-    const headerBonus = /(data|dia|date|datahora|data\/hora)/.test(header) ? 10 : 0;
+    const headerBonus = /(data|dia|date)/.test(header) ? 10 : 0;
 
     let parseableCount = 0;
     for (const row of dataRows.slice(0, 20)) {
-      const iso = toIsoDate(String(row[columnIndex] ?? ""));
+      const raw = String(row[columnIndex] ?? "");
+      if (!isStrictDateLikeText(raw)) {
+        continue;
+      }
+
+      const iso = toIsoDate(raw);
       if (iso) {
         parseableCount += 1;
       }
