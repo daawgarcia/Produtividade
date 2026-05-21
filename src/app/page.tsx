@@ -61,6 +61,18 @@ function formatMetricLabel(metric: string): string {
   }
 }
 
+function extractDatePartsFromPtBrDateTime(value: string): { month: string; year: string } | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    month: match[2],
+    year: match[3],
+  };
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("operators");
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -74,6 +86,8 @@ export default function Home() {
   const [duplicateFilterField, setDuplicateFilterField] =
     useState<DuplicateFilterField>("none");
   const [duplicateFilterValue, setDuplicateFilterValue] = useState<string>("");
+  const [duplicateMonthFilter, setDuplicateMonthFilter] = useState<string>("");
+  const [duplicateYearFilter, setDuplicateYearFilter] = useState<string>("");
 
   const queryDate = useMemo(() => selectedDate || null, [selectedDate]);
   const queryMonth = useMemo(() => (selectedMonth ? Number(selectedMonth) : null), [selectedMonth]);
@@ -114,14 +128,46 @@ export default function Home() {
     );
   }, [operatorsData?.duplicates, duplicateFilterField]);
 
-  const filteredDuplicates = useMemo(() => {
+  const duplicateMonthOptions = useMemo(() => {
     const duplicates = operatorsData?.duplicates ?? [];
+    const months = duplicates
+      .map((item) => extractDatePartsFromPtBrDateTime(item.duplicateTimestamp)?.month ?? "")
+      .filter(Boolean);
 
-    if (duplicateFilterField === "none" || !duplicateFilterValue) {
-      return duplicates;
+    return Array.from(new Set(months)).sort((a, b) => Number(a) - Number(b));
+  }, [operatorsData?.duplicates]);
+
+  const duplicateYearOptions = useMemo(() => {
+    const duplicates = operatorsData?.duplicates ?? [];
+    const years = duplicates
+      .map((item) => extractDatePartsFromPtBrDateTime(item.duplicateTimestamp)?.year ?? "")
+      .filter(Boolean);
+
+    return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
+  }, [operatorsData?.duplicates]);
+
+  const filteredDuplicates = useMemo(() => {
+    let filtered = operatorsData?.duplicates ?? [];
+
+    if (duplicateMonthFilter) {
+      filtered = filtered.filter((item) => {
+        const parts = extractDatePartsFromPtBrDateTime(item.duplicateTimestamp);
+        return parts?.month === duplicateMonthFilter;
+      });
     }
 
-    return duplicates.filter((item) => {
+    if (duplicateYearFilter) {
+      filtered = filtered.filter((item) => {
+        const parts = extractDatePartsFromPtBrDateTime(item.duplicateTimestamp);
+        return parts?.year === duplicateYearFilter;
+      });
+    }
+
+    if (duplicateFilterField === "none" || !duplicateFilterValue) {
+      return filtered;
+    }
+
+    return filtered.filter((item) => {
       switch (duplicateFilterField) {
         case "caseId":
           return item.caseId.toUpperCase() === duplicateFilterValue;
@@ -135,7 +181,13 @@ export default function Home() {
           return true;
       }
     });
-  }, [operatorsData?.duplicates, duplicateFilterField, duplicateFilterValue]);
+  }, [
+    operatorsData?.duplicates,
+    duplicateFilterField,
+    duplicateFilterValue,
+    duplicateMonthFilter,
+    duplicateYearFilter,
+  ]);
 
   useEffect(() => {
     setDuplicateFilterValue("");
@@ -486,7 +538,7 @@ export default function Home() {
           </div>
 
           <div className="brand-card p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
                   Filtrar por
@@ -520,6 +572,42 @@ export default function Home() {
                   {duplicateFilterOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                  Mês
+                </label>
+                <select
+                  value={duplicateMonthFilter}
+                  onChange={(event) => setDuplicateMonthFilter(event.target.value)}
+                  className="w-full rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+                >
+                  <option value="">Todos</option>
+                  {duplicateMonthOptions.map((month) => (
+                    <option key={month} value={month}>
+                      {MONTH_LABELS[Number(month) - 1] ?? month}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                  Ano
+                </label>
+                <select
+                  value={duplicateYearFilter}
+                  onChange={(event) => setDuplicateYearFilter(event.target.value)}
+                  className="w-full rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+                >
+                  <option value="">Todos</option>
+                  {duplicateYearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
                     </option>
                   ))}
                 </select>
