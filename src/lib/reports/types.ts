@@ -20,6 +20,7 @@ export interface OperatorDuplicateItem {
   duplicateOperator: string;
   firstTimestamp: string;
   duplicateTimestamp: string;
+  timestamp: number;
 }
 
 export interface OperatorsReport {

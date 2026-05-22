@@ -566,7 +566,7 @@ export function buildOperatorsReport(
 
       const rawDateCell = row[dateColumn] ?? "";
       const rawTimeCell = timeColumn !== null ? String(row[timeColumn] ?? "") : null;
-      const rowDateTime = combineDateAndTime(String(rawDateCell), rawTimeCell);
+      const rowDateTime = combineDateAndTime(rowDate ?? String(rawDateCell), rawTimeCell);
 
       const applyDedupRule = Boolean(
         rowDate && rowDate >= DEDUP_START_DATE && caseColumn !== null
@@ -637,6 +637,7 @@ export function buildOperatorsReport(
         duplicateOperator: event.operator,
         firstTimestamp: formatTimestampForUi(lastAccepted.timestamp),
         duplicateTimestamp: formatTimestampForUi(event.timestamp),
+        timestamp: event.timestamp,
       });
       continue;
     }
@@ -650,9 +651,7 @@ export function buildOperatorsReport(
   }
 
   duplicates.sort((a, b) => {
-    const tsA = new Date(a.duplicateTimestamp).getTime();
-    const tsB = new Date(b.duplicateTimestamp).getTime();
-    return tsB - tsA;
+    return b.timestamp - a.timestamp;
   });
 
   const operators: OperatorReportItem[] = input.map(({ operator }) => {
