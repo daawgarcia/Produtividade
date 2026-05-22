@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getOperatorsReport } from "@/lib/reports/service";
 
+function isQuotaError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("quota") || normalized.includes("429");
+}
+
 function parseDateFilter(rawDate: string | null): string | null {
   if (!rawDate) {
     return null;
@@ -61,6 +66,15 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro interno";
+    if (isQuotaError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Limite temporario de leitura do Google Sheets atingido. Aguarde alguns segundos e tente sincronizar novamente.",
+        },
+        { status: 429 }
+      );
+    }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

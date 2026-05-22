@@ -139,17 +139,24 @@ async function withCache<T>(
   forceRefresh = false
 ): Promise<T> {
   const now = Date.now();
+  const cached = cache.get(key);
 
   if (!forceRefresh) {
-    const cached = cache.get(key);
     if (cached && now - cached.createdAt < TEN_MINUTES_MS) {
       return cached.data as T;
     }
   }
 
-  const data = await loader();
-  cache.set(key, { createdAt: now, data });
-  return data;
+  try {
+    const data = await loader();
+    cache.set(key, { createdAt: now, data });
+    return data;
+  } catch (error) {
+    if (cached) {
+      return cached.data as T;
+    }
+    throw error;
+  }
 }
 
 export async function getOperatorsReport(
