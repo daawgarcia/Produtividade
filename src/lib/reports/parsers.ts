@@ -27,7 +27,7 @@ function parseNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const DEDUP_START_DATE = "2026-05-22";
+const DEDUP_START_DATE = "2026-05-01";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const UI_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",

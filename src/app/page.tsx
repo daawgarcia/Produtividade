@@ -665,7 +665,7 @@ export default function Home() {
 
           <div className="brand-card overflow-hidden">
             <div className="border-b border-card-border bg-slate-50 px-4 py-3">
-              <h2 className="font-semibold text-brand-primary">Casos Duplicados (Regra a partir de 22/05/2026)</h2>
+              <h2 className="font-semibold text-brand-primary">Casos Duplicados (Regra a partir de 01/05/2026)</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
