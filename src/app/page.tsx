@@ -73,6 +73,18 @@ function extractDatePartsFromPtBrDateTime(value: string): { month: string; year:
   };
 }
 
+function extractIsoDateFromPtBrDateTime(value: string): string | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) {
+    return null;
+  }
+
+  const day = match[1];
+  const month = match[2];
+  const year = match[3];
+  return `${year}-${month}-${day}`;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("operators");
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -88,6 +100,7 @@ export default function Home() {
   const [duplicateFilterValue, setDuplicateFilterValue] = useState<string>("");
   const [duplicateMonthFilter, setDuplicateMonthFilter] = useState<string>("");
   const [duplicateYearFilter, setDuplicateYearFilter] = useState<string>("");
+  const [duplicateDateFilter, setDuplicateDateFilter] = useState<string>("");
 
   const queryDate = useMemo(() => selectedDate || null, [selectedDate]);
   const queryMonth = useMemo(() => (selectedMonth ? Number(selectedMonth) : null), [selectedMonth]);
@@ -146,6 +159,15 @@ export default function Home() {
     return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
   }, [operatorsData?.duplicates]);
 
+  const duplicateDateOptions = useMemo(() => {
+    const duplicates = operatorsData?.duplicates ?? [];
+    const dates = duplicates
+      .map((item) => extractIsoDateFromPtBrDateTime(item.duplicateTimestamp) ?? "")
+      .filter(Boolean);
+
+    return Array.from(new Set(dates)).sort((a, b) => b.localeCompare(a));
+  }, [operatorsData?.duplicates]);
+
   const filteredDuplicates = useMemo(() => {
     let filtered = operatorsData?.duplicates ?? [];
 
@@ -160,6 +182,13 @@ export default function Home() {
       filtered = filtered.filter((item) => {
         const parts = extractDatePartsFromPtBrDateTime(item.duplicateTimestamp);
         return parts?.year === duplicateYearFilter;
+      });
+    }
+
+    if (duplicateDateFilter) {
+      filtered = filtered.filter((item) => {
+        const isoDate = extractIsoDateFromPtBrDateTime(item.duplicateTimestamp);
+        return isoDate === duplicateDateFilter;
       });
     }
 
@@ -187,6 +216,7 @@ export default function Home() {
     duplicateFilterValue,
     duplicateMonthFilter,
     duplicateYearFilter,
+    duplicateDateFilter,
   ]);
 
   useEffect(() => {
@@ -538,7 +568,7 @@ export default function Home() {
           </div>
 
           <div className="brand-card p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
                   Filtrar por
@@ -612,12 +642,30 @@ export default function Home() {
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                  Data
+                </label>
+                <select
+                  value={duplicateDateFilter}
+                  onChange={(event) => setDuplicateDateFilter(event.target.value)}
+                  className="w-full rounded-xl border border-card-border bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none ring-brand-secondary/40 transition focus:ring"
+                >
+                  <option value="">Todas</option>
+                  {duplicateDateOptions.map((date) => (
+                    <option key={date} value={date}>
+                      {formatDateLabel(date)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
           <div className="brand-card overflow-hidden">
             <div className="border-b border-card-border bg-slate-50 px-4 py-3">
-              <h2 className="font-semibold text-brand-primary">Casos Duplicados (Regra a partir de 01/05/2026)</h2>
+              <h2 className="font-semibold text-brand-primary">Casos Duplicados (Regra a partir de 22/05/2026)</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
