@@ -29,6 +29,7 @@ function parseNumber(value: string): number {
 
 const DEDUP_START_DATE = "2026-05-01";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000;
 const UI_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   year: "numeric",
@@ -44,9 +45,35 @@ function formatTimestampForUi(timestamp: number): string {
   return UI_DATE_TIME_FORMATTER.format(new Date(timestamp));
 }
 
-function parseExcelSerialToLocalDate(serial: number): Date {
-  const excelEpochLocal = new Date(1899, 11, 30, 0, 0, 0, 0);
-  return new Date(excelEpochLocal.getTime() + Math.round(serial * 86400 * 1000));
+function timestampFromSaoPauloParts(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0
+): number {
+  return Date.UTC(year, month - 1, day, hour, minute, second) + SAO_PAULO_UTC_OFFSET_MS;
+}
+
+function parseExcelSerialToIsoDate(serial: number): string | null {
+  const wholeDays = Math.floor(serial);
+  const excelEpochUtcMs = Date.UTC(1899, 11, 30, 0, 0, 0, 0);
+  const dateUtc = new Date(excelEpochUtcMs + wholeDays * 86400 * 1000);
+
+  if (Number.isNaN(dateUtc.getTime())) {
+    return null;
+  }
+
+  const year = String(dateUtc.getUTCFullYear());
+  const month = String(dateUtc.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dateUtc.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseExcelSerialToTimestamp(serial: number): number {
+  const excelEpochUtcMs = Date.UTC(1899, 11, 30, 0, 0, 0, 0);
+  return excelEpochUtcMs + Math.round(serial * 86400 * 1000) + SAO_PAULO_UTC_OFFSET_MS;
 }
 
 function toIsoDate(value: string): string | null {
@@ -77,12 +104,9 @@ function toIsoDate(value: string): string | null {
 
   const maybeNumber = Number(trimmed);
   if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
-    const date = parseExcelSerialToLocalDate(maybeNumber);
-    if (!Number.isNaN(date.getTime())) {
-      const year = String(date.getFullYear());
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+    const isoDate = parseExcelSerialToIsoDate(maybeNumber);
+    if (isoDate) {
+      return isoDate;
     }
   }
 
@@ -110,9 +134,9 @@ function toTimestamp(value: string): number | null {
     const hour = Number(isoDateTime[4] ?? "0");
     const minute = Number(isoDateTime[5] ?? "0");
     const second = Number(isoDateTime[6] ?? "0");
-    const parsed = new Date(year, month - 1, day, hour, minute, second);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getTime();
+    const timestamp = timestampFromSaoPauloParts(year, month, day, hour, minute, second);
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
     }
   }
 
@@ -132,9 +156,16 @@ function toTimestamp(value: string): number | null {
     const hour = Number((slashDateTime[4] ?? "0").padStart(2, "0"));
     const minute = Number((slashDateTime[5] ?? "0").padStart(2, "0"));
     const second = Number((slashDateTime[6] ?? "0").padStart(2, "0"));
-    const parsed = new Date(Number(year), Number(month) - 1, Number(day), hour, minute, second);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getTime();
+    const timestamp = timestampFromSaoPauloParts(
+      Number(year),
+      Number(month),
+      Number(day),
+      hour,
+      minute,
+      second
+    );
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
     }
   }
 
@@ -149,17 +180,24 @@ function toTimestamp(value: string): number | null {
     const hour = Number((dashDateTime[4] ?? "0").padStart(2, "0"));
     const minute = Number((dashDateTime[5] ?? "0").padStart(2, "0"));
     const second = Number((dashDateTime[6] ?? "0").padStart(2, "0"));
-    const parsed = new Date(Number(year), Number(month) - 1, Number(day), hour, minute, second);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getTime();
+    const timestamp = timestampFromSaoPauloParts(
+      Number(year),
+      Number(month),
+      Number(day),
+      hour,
+      minute,
+      second
+    );
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
     }
   }
 
   const maybeNumber = Number(trimmed);
   if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
-    const parsed = parseExcelSerialToLocalDate(maybeNumber);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getTime();
+    const parsed = parseExcelSerialToTimestamp(maybeNumber);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
     }
   }
 
