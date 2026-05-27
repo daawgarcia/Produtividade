@@ -140,9 +140,12 @@ function toTimestamp(value: string): number | null {
     }
   }
 
-  const direct = new Date(trimmed);
-  if (!Number.isNaN(direct.getTime())) {
-    return direct.getTime();
+  const maybeNumber = Number(trimmed);
+  if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
+    const parsed = parseExcelSerialToTimestamp(maybeNumber);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
   }
 
   const slashDateTime = trimmed.match(
@@ -193,11 +196,11 @@ function toTimestamp(value: string): number | null {
     }
   }
 
-  const maybeNumber = Number(trimmed);
-  if (Number.isFinite(maybeNumber) && maybeNumber > 20000) {
-    const parsed = parseExcelSerialToTimestamp(maybeNumber);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
+  // Keep a permissive fallback only for non-numeric date-like strings.
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const direct = new Date(trimmed);
+    if (!Number.isNaN(direct.getTime())) {
+      return direct.getTime();
     }
   }
 
@@ -614,7 +617,7 @@ export function buildOperatorsReport(
         ? normalizeCaseId(String(row[caseColumn ?? -1] ?? ""))
         : null;
 
-      const rowTimestamp = toTimestamp(rowDateTime) ?? toTimestamp(String(rawDateCell)) ?? 0;
+      const rowTimestamp = toTimestamp(String(rawDateCell)) ?? toTimestamp(rowDateTime) ?? 0;
 
       const metricColumns: Array<{ metric: OperatorMetricKey; columns: number[] }> = [
         { metric: "preparo", columns: preparoColumns },
