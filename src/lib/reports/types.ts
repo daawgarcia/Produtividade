@@ -1,4 +1,10 @@
-export type OperatorMetricKey = "preparo" | "liberacao" | "scanner" | "mio" | "air";
+export type OperatorMetricKey =
+  | "preparo"
+  | "liberacao"
+  | "scanner"
+  | "mio"
+  | "air"
+  | "movimento";
 
 export interface OperatorTotals {
   preparo: number;
@@ -6,6 +12,7 @@ export interface OperatorTotals {
   scanner: number;
   mio: number;
   air: number;
+  movimento: number;
   total: number;
 }
 

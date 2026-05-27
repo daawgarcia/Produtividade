@@ -107,6 +107,7 @@ function ensureRequiredOperators(report: OperatorsReport): OperatorsReport {
         scanner: 0,
         mio: 0,
         air: 0,
+        movimento: 0,
         total: 0,
       })),
     ],

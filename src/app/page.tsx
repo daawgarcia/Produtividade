@@ -56,6 +56,8 @@ function formatMetricLabel(metric: string): string {
       return "MIO";
     case "air":
       return "AIR";
+    case "movimento":
+      return "Movimento";
     default:
       return metric;
   }
@@ -424,7 +426,7 @@ export default function Home() {
 
       {activeTab === "operators" ? (
         <section className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-10">
             <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Filtro</p>
               <p className="text-lg font-bold text-brand-primary">{formatDateLabel(queryDate)}</p>
@@ -458,6 +460,10 @@ export default function Home() {
               <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.air ?? 0)}</p>
             </article>
             <article className="brand-card p-4">
+              <p className="text-xs uppercase text-slate-500">Movimento</p>
+              <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.movimento ?? 0)}</p>
+            </article>
+            <article className="brand-card p-4">
               <p className="text-xs uppercase text-slate-500">Total</p>
               <p className="text-2xl font-bold text-brand-primary">{formatNumber(operatorsData?.totals.total ?? 0)}</p>
             </article>
@@ -477,6 +483,7 @@ export default function Home() {
                     <th className="px-4 py-3">Scanner</th>
                     <th className="px-4 py-3">MIO</th>
                     <th className="px-4 py-3">AIR</th>
+                    <th className="px-4 py-3">Movimento</th>
                     <th className="px-4 py-3">Total</th>
                   </tr>
                 </thead>
@@ -489,6 +496,7 @@ export default function Home() {
                       <td className="px-4 py-3">{formatNumber(item.scanner)}</td>
                       <td className="px-4 py-3">{formatNumber(item.mio)}</td>
                       <td className="px-4 py-3">{formatNumber(item.air)}</td>
+                      <td className="px-4 py-3">{formatNumber(item.movimento)}</td>
                       <td className="px-4 py-3 font-bold text-brand-primary">{formatNumber(item.total)}</td>
                     </tr>
                   ))}

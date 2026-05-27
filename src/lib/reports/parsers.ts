@@ -526,7 +526,14 @@ export function buildOperatorsReport(
 ): OperatorsReport {
   const metricsByOperator = new Map<
     string,
-    { preparo: number; liberacao: number; scanner: number; mio: number; air: number }
+    {
+      preparo: number;
+      liberacao: number;
+      scanner: number;
+      mio: number;
+      air: number;
+      movimento: number;
+    }
   >();
 
   type CaseEvent = {
@@ -551,6 +558,7 @@ export function buildOperatorsReport(
       scanner: 0,
       mio: 0,
       air: 0,
+      movimento: 0,
     };
     metricsByOperator.set(operator, created);
     return created;
@@ -565,6 +573,7 @@ export function buildOperatorsReport(
       "libera",
       "mio",
       "air",
+      "mov",
     ]);
 
     const dateColumns = findDateColumns(headers, dataRows);
@@ -574,6 +583,7 @@ export function buildOperatorsReport(
     const scannerColumns = matchColumns(headers, ["scanner"]);
     const mioColumns = matchColumns(headers, ["mio"]);
     const airColumns = matchColumns(headers, ["air"]);
+    const movimentoColumns = matchColumns(headers, ["mov", "moviment"]);
 
     const metrics = getOperatorMetrics(operator);
     const caseColumn = findCaseColumn(headers);
@@ -625,6 +635,7 @@ export function buildOperatorsReport(
         { metric: "scanner", columns: scannerColumns },
         { metric: "mio", columns: mioColumns },
         { metric: "air", columns: airColumns },
+        { metric: "movimento", columns: movimentoColumns },
       ];
 
       for (const metricColumn of metricColumns) {
@@ -698,7 +709,12 @@ export function buildOperatorsReport(
   const operators: OperatorReportItem[] = input.map(({ operator }) => {
     const metrics = getOperatorMetrics(operator);
     const total =
-      metrics.preparo + metrics.liberacao + metrics.scanner + metrics.mio + metrics.air;
+      metrics.preparo +
+      metrics.liberacao +
+      metrics.scanner +
+      metrics.mio +
+      metrics.air +
+      metrics.movimento;
 
     return {
       operator,
@@ -714,6 +730,7 @@ export function buildOperatorsReport(
       acc.scanner += item.scanner;
       acc.mio += item.mio;
       acc.air += item.air;
+      acc.movimento += item.movimento;
       acc.total += item.total;
       return acc;
     },
@@ -723,6 +740,7 @@ export function buildOperatorsReport(
       scanner: 0,
       mio: 0,
       air: 0,
+      movimento: 0,
       total: 0,
     }
   );
@@ -752,6 +770,7 @@ export function inspectOperatorRows(
     "libera",
     "mio",
     "air",
+    "mov",
   ]);
 
   const dateColumns = findDateColumns(headers, dataRows);
@@ -761,6 +780,7 @@ export function inspectOperatorRows(
     scanner: matchColumns(headers, ["scanner"]),
     mio: matchColumns(headers, ["mio"]),
     air: matchColumns(headers, ["air"]),
+    movimento: matchColumns(headers, ["mov", "moviment"]),
   };
 
   let includedRows = 0;
@@ -772,6 +792,7 @@ export function inspectOperatorRows(
     scanner: 0,
     mio: 0,
     air: 0,
+    movimento: 0,
   };
 
   const hasExactDateMatch = dateFilter
@@ -838,6 +859,10 @@ export function inspectOperatorRows(
       0
     );
     sumsBeforeDedup.air += metricColumns.air.reduce(
+      (acc, column) => acc + parseNumber(row[column] ?? "0"),
+      0
+    );
+    sumsBeforeDedup.movimento += metricColumns.movimento.reduce(
       (acc, column) => acc + parseNumber(row[column] ?? "0"),
       0
     );
